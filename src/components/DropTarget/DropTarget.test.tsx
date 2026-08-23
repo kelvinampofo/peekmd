@@ -25,8 +25,8 @@ async function selectFile(file: File) {
   await user.upload(screen.getByLabelText("Open File"), file);
 }
 
-describe("opening a Markdown file", () => {
-  it.each(["notes.md", "notes.markdown"])("accepts %s files", async (name) => {
+describe("opening Markdown files", () => {
+  it.each(["notes.md", "notes.markdown"])("opens %s", async (name) => {
     render(<DropTarget />);
 
     await selectFile(markdownFile(name, `# Preview of ${name}`));
@@ -34,7 +34,7 @@ describe("opening a Markdown file", () => {
     expect(await screen.findByRole("heading", { name: `Preview of ${name}` })).toBeVisible();
   });
 
-  it("reads and renders a dropped file's Markdown", async () => {
+  it("previews dropped Markdown", async () => {
     render(<DropTarget />);
 
     dropFile(markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."));
@@ -43,7 +43,7 @@ describe("opening a Markdown file", () => {
     expect(screen.getByText("ready to ship")).toBeVisible();
   });
 
-  it("rejects unsupported file types", () => {
+  it("shows an error for unsupported files", () => {
     render(<DropTarget />);
 
     dropFile(new File(["plain text"], "notes.txt"));
@@ -52,7 +52,7 @@ describe("opening a Markdown file", () => {
     expect(screen.queryByText("plain text")).not.toBeInTheDocument();
   });
 
-  it("shows a loading state while the selected file is being read", async () => {
+  it("marks the preview busy while reading", async () => {
     const file = markdownFile("slow.md", "");
     file.text = vi.fn().mockReturnValue(new Promise<string>(() => {}));
 
@@ -66,7 +66,7 @@ describe("opening a Markdown file", () => {
     );
   });
 
-  it("shows an error when the selected file cannot be read", async () => {
+  it("shows an error when reading fails", async () => {
     const file = markdownFile("unreadable.md", "");
     file.text = vi.fn().mockRejectedValue(new Error("File is unavailable"));
 

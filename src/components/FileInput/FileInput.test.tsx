@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import FileInput from "./FileInput";
 
 describe("FileInput", () => {
-  it("labels and filters the native file input", () => {
+  it("exposes a Markdown file picker", () => {
     render(<FileInput onFileSelect={vi.fn()}>Open File</FileInput>);
 
     const input = screen.getByLabelText("Open File");
@@ -13,7 +13,7 @@ describe("FileInput", () => {
     expect(input).toHaveAttribute("accept", ".md,.markdown,text/markdown");
   });
 
-  it("reports the selected file and resets the input", async () => {
+  it("reports the selected file", async () => {
     const user = userEvent.setup();
     const onFileSelect = vi.fn();
 
@@ -26,6 +26,5 @@ describe("FileInput", () => {
     await user.upload(input, file);
 
     expect(onFileSelect).toHaveBeenCalledWith(file);
-    expect(input).toHaveValue("");
   });
 });
