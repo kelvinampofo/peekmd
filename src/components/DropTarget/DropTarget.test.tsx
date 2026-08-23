@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import DropTarget from "./DropTarget";
 
@@ -18,16 +19,22 @@ function dropFile(file: File) {
   });
 }
 
+async function selectFile(file: File) {
+  const user = userEvent.setup();
+
+  await user.upload(screen.getByLabelText("Open File"), file);
+}
+
 describe("opening a Markdown file", () => {
   it.each(["notes.md", "notes.markdown"])("accepts %s files", async (name) => {
     render(<DropTarget />);
 
-    dropFile(markdownFile(name, `# Preview of ${name}`));
+    await selectFile(markdownFile(name, `# Preview of ${name}`));
 
     expect(await screen.findByRole("heading", { name: `Preview of ${name}` })).toBeVisible();
   });
 
-  it("reads and renders the selected file's Markdown", async () => {
+  it("reads and renders a dropped file's Markdown", async () => {
     render(<DropTarget />);
 
     dropFile(markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."));
@@ -45,13 +52,13 @@ describe("opening a Markdown file", () => {
     expect(screen.queryByText("plain text")).not.toBeInTheDocument();
   });
 
-  it("shows a loading state while the file is being read", () => {
+  it("shows a loading state while the selected file is being read", async () => {
     const file = markdownFile("slow.md", "");
     file.text = vi.fn().mockReturnValue(new Promise<string>(() => {}));
 
     render(<DropTarget />);
 
-    dropFile(file);
+    await selectFile(file);
 
     expect(screen.getByRole("region", { name: "Markdown preview" })).toHaveAttribute(
       "aria-busy",
@@ -65,7 +72,7 @@ describe("opening a Markdown file", () => {
 
     render(<DropTarget />);
 
-    dropFile(file);
+    await selectFile(file);
 
     expect(await screen.findByRole("alert")).toBeVisible();
   });

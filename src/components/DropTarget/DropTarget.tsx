@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useFileDrop } from "../../hooks/useFileDrop";
+import FileInput from "../FileInput/FileInput";
 import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
 
 import "./DropTarget.css";
@@ -23,10 +24,13 @@ export default function DropTarget() {
 
   const { isFileOverDropTarget, dropTargetEventHandlers } = useFileDrop(readDroppedMarkdownFile);
 
-  async function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
+  function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
+    void readMarkdownFile(dataTransfer.files.item(0));
+  }
+
+  async function readMarkdownFile(file: File | null) {
     latestReadId.current += 1;
     const currentReadId = latestReadId.current;
-    const file = dataTransfer.files.item(0);
 
     if (!file || !isMarkdownFile(file)) {
       setFileReadState({
@@ -54,11 +58,15 @@ export default function DropTarget() {
     }
   }
 
+  function handleFileSelection(file: File) {
+    void readMarkdownFile(file);
+  }
+
   const emptyStateMessage = isFileOverDropTarget
     ? "Drop to preview"
     : fileReadState.status === "reading"
       ? "Reading file..."
-      : "Drop a .md file";
+      : "Drop a Markdown file";
 
   return (
     <main className="workspace">
@@ -72,7 +80,7 @@ export default function DropTarget() {
         {fileReadState.status === "loaded" ? (
           <MarkdownPreview source={fileReadState.source} />
         ) : (
-          <EmptyState message={emptyStateMessage} />
+          <EmptyState message={emptyStateMessage} onFileSelect={handleFileSelection} />
         )}
 
         {fileReadState.status === "error" ? (
@@ -85,7 +93,12 @@ export default function DropTarget() {
   );
 }
 
-export function EmptyState({ message }: { message: string }) {
+interface EmptyStateProps {
+  message: string;
+  onFileSelect: (file: File) => void;
+}
+
+export function EmptyState({ message, onFileSelect }: EmptyStateProps) {
   return (
     <div className="empty-state">
       <svg
@@ -104,6 +117,8 @@ export function EmptyState({ message }: { message: string }) {
         />
       </svg>
       <p>{message}</p>
+      <span>or</span>
+      <FileInput onFileSelect={onFileSelect}>Open File</FileInput>
     </div>
   );
 }
