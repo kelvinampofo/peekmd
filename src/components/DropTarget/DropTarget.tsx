@@ -5,13 +5,6 @@ import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
 
 import "./DropTarget.css";
 
-function isMarkdownFile(file: File) {
-  const fileName = file.name.toLowerCase();
-  const fileExtensions = [".md", ".markdown"];
-
-  return fileExtensions.some((extension) => fileName.endsWith(extension));
-}
-
 type FileReadState =
   | { status: "idle" }
   | { status: "reading" }
@@ -24,15 +17,14 @@ export default function DropTarget() {
 
   const { isFileDragActive, dropHandlers } = useFileDrop(readDroppedMarkdownFile);
 
-  function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
-    void readMarkdownFile(dataTransfer.files.item(0));
-  }
-
   async function readMarkdownFile(file: File | null) {
     latestReadId.current += 1;
     const currentReadId = latestReadId.current;
 
-    if (!file || !isMarkdownFile(file)) {
+    const fileName = file?.name.toLowerCase();
+    const isMarkdownFile = fileName?.endsWith(".md") || fileName?.endsWith(".markdown");
+
+    if (!file || !isMarkdownFile) {
       setFileReadState({
         status: "error",
         message: "Drop a Markdown (.md or .markdown) file.",
@@ -58,15 +50,13 @@ export default function DropTarget() {
     }
   }
 
+  function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
+    void readMarkdownFile(dataTransfer.files.item(0));
+  }
+
   function handleFileSelection(file: File) {
     void readMarkdownFile(file);
   }
-
-  const emptyStateMessage = isFileDragActive
-    ? "Drop to preview"
-    : fileReadState.status === "reading"
-      ? "Reading file..."
-      : "Drop a Markdown file";
 
   return (
     <main className="workspace">
@@ -81,7 +71,7 @@ export default function DropTarget() {
           <MarkdownPreview source={fileReadState.source} />
         ) : (
           <EmptyState
-            message={emptyStateMessage}
+            message={isFileDragActive ? "Drop to preview" : "Drop a Markdown file"}
             onFileSelect={handleFileSelection}
             state={isFileDragActive ? "dragover" : "idle"}
           />
