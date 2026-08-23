@@ -13,7 +13,7 @@ describe("FileInput", () => {
     expect(input).toHaveAttribute("accept", ".md,.markdown,text/markdown");
   });
 
-  it("reports the selected file", async () => {
+  it("reports each file selection", async () => {
     const user = userEvent.setup();
     const onFileSelect = vi.fn();
 
@@ -24,7 +24,9 @@ describe("FileInput", () => {
     const input = screen.getByLabelText<HTMLInputElement>("Open File");
 
     await user.upload(input, file);
+    await user.upload(input, file);
 
-    expect(onFileSelect).toHaveBeenCalledWith(file);
+    expect(onFileSelect).toHaveBeenNthCalledWith(1, file);
+    expect(onFileSelect).toHaveBeenNthCalledWith(2, file);
   });
 });
