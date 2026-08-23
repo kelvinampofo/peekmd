@@ -1,10 +1,11 @@
 @layer components {
   .markdown-preview {
     width: min(calc(100% - var(--space-26)), var(--content-max-width));
+    min-width: 0;
     padding-block: var(--space-42);
     place-self: start center;
     line-height: 1.6;
-    overflow-wrap: break-word;
+    overflow-wrap: anywhere;
 
     --flow-space: 1em;
     --muted-color: color-mix(in oklab, currentColor 60%, transparent);
@@ -249,6 +250,7 @@
 
     /* code blocks */
     &:where(pre) {
+      max-width: 100%;
       background-color: var(--color-muted, color-mix(in oklab, currentColor 8%, transparent));
       font-family: var(--font-family-mono);
       font-size: 0.875em;
@@ -335,7 +337,10 @@
 
     /* tables, separators sit on cells, not tr:last-child so rows can be appended */
     &:where(table) {
+      display: block;
+      width: max-content;
       max-width: 100%;
+      overflow-x: auto;
       font-size: 1em;
       line-height: 1.5;
       font-variant-numeric: tabular-nums;
