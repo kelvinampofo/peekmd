@@ -23,93 +23,6 @@
     box-shadow: inset 0 0 0 1px var(--color-grey-8);
   }
 
-  .empty-state {
-    place-self: center;
-    display: grid;
-    justify-items: center;
-    gap: var(--space-4);
-    color: var(--color-foreground-secondary);
-    font-size: 0.875rem;
-    text-align: center;
-  }
-
-  .empty-state__document-fan {
-    position: relative;
-    width: 35px;
-    height: 19px;
-  }
-
-  .empty-state__document-icon {
-    position: absolute;
-    inset-block-start: 2px;
-    inset-inline-start: 10px;
-    transform-origin: 50% 85%;
-    /* Safari-ism, to avoid SVG jittering caused by sub-pixel rendering bugs during transforms */
-    will-change: transform, opacity;
-    transition:
-      transform var(--duration-movement) var(--ease-in-out),
-      opacity 80ms var(--ease-out) 120ms;
-  }
-
-  .empty-state__document-icon[data-position="left"] {
-    color: var(--color-grey-9);
-    transform: translate(-7px, 2px) rotate(-18deg);
-  }
-
-  .empty-state__document-icon[data-position="center"] {
-    z-index: 1;
-  }
-
-  .empty-state__document-icon[data-position="right"] {
-    color: var(--color-grey-9);
-    transform: translate(7px, 2px) rotate(18deg);
-  }
-
-  @media (min-width: 641px) {
-    .empty-state__document-icon:is([data-position="left"], [data-position="right"]) {
-      opacity: 0;
-      transform: none;
-    }
-
-    .document-window[data-dragging]
-      .empty-state__document-icon:is([data-position="left"], [data-position="right"]) {
-      opacity: 1;
-      transition:
-        transform var(--duration-movement) var(--ease-in-out),
-        opacity 100ms var(--ease-out);
-
-      &[data-position="left"] {
-        transform: translate(-7px, 2px) rotate(-18deg);
-      }
-
-      &[data-position="right"] {
-        transform: translate(7px, 2px) rotate(18deg);
-      }
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .empty-state__document-icon,
-    .document-window[data-dragging] .empty-state__document-icon {
-      transition: opacity var(--duration-hover) var(--ease-out);
-    }
-  }
-
-  @media (min-width: 641px) and (prefers-reduced-motion: reduce) {
-    .empty-state__document-icon[data-position="left"] {
-      transform: translate(-7px, 2px) rotate(-18deg);
-    }
-
-    .empty-state__document-icon[data-position="right"] {
-      transform: translate(7px, 2px) rotate(18deg);
-    }
-  }
-
-  .empty-state span {
-    color: var(--color-grey-9);
-    font-size: 0.875rem;
-  }
-
   .document-window__status {
     position: absolute;
     inset-inline: var(--space-16);
@@ -120,11 +33,6 @@
   }
 
   @media (max-width: 640px) {
-    .empty-state__document-icon:is([data-position="left"], [data-position="right"]) {
-      opacity: 0;
-      transform: none;
-    }
-
     .document-window {
       width: calc(100% - (var(--space-16) * 2));
       height: calc(100dvh - var(--space-16));
