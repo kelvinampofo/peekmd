@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import DropTarget from "./DropTarget";
 
@@ -18,16 +19,22 @@ function dropFile(file: File) {
   });
 }
 
-describe("opening a Markdown file", () => {
-  it.each(["notes.md", "notes.markdown"])("accepts %s files", async (name) => {
+async function selectFile(file: File) {
+  const user = userEvent.setup();
+
+  await user.upload(screen.getByLabelText("Open File"), file);
+}
+
+describe("opening Markdown files", () => {
+  it.each(["notes.md", "notes.markdown"])("opens %s", async (name) => {
     render(<DropTarget />);
 
-    dropFile(markdownFile(name, `# Preview of ${name}`));
+    await selectFile(markdownFile(name, `# Preview of ${name}`));
 
     expect(await screen.findByRole("heading", { name: `Preview of ${name}` })).toBeVisible();
   });
 
-  it("reads and renders the selected file's Markdown", async () => {
+  it("previews dropped Markdown", async () => {
     render(<DropTarget />);
 
     dropFile(markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."));
@@ -36,7 +43,7 @@ describe("opening a Markdown file", () => {
     expect(screen.getByText("ready to ship")).toBeVisible();
   });
 
-  it("rejects unsupported file types", () => {
+  it("shows an error for unsupported files", () => {
     render(<DropTarget />);
 
     dropFile(new File(["plain text"], "notes.txt"));
@@ -45,13 +52,13 @@ describe("opening a Markdown file", () => {
     expect(screen.queryByText("plain text")).not.toBeInTheDocument();
   });
 
-  it("shows a loading state while the file is being read", () => {
+  it("marks the preview busy while reading", async () => {
     const file = markdownFile("slow.md", "");
     file.text = vi.fn().mockReturnValue(new Promise<string>(() => {}));
 
     render(<DropTarget />);
 
-    dropFile(file);
+    await selectFile(file);
 
     expect(screen.getByRole("region", { name: "Markdown preview" })).toHaveAttribute(
       "aria-busy",
@@ -59,13 +66,13 @@ describe("opening a Markdown file", () => {
     );
   });
 
-  it("shows an error when the selected file cannot be read", async () => {
+  it("shows an error when reading fails", async () => {
     const file = markdownFile("unreadable.md", "");
     file.text = vi.fn().mockRejectedValue(new Error("File is unavailable"));
 
     render(<DropTarget />);
 
-    dropFile(file);
+    await selectFile(file);
 
     expect(await screen.findByRole("alert")).toBeVisible();
   });

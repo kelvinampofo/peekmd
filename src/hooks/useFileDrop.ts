@@ -1,25 +1,43 @@
 import { useState } from "react";
 import type { DragEvent } from "react";
 
-type DataTransferDropHandler = (dataTransfer: DataTransfer) => void;
+type FileDropHandler = (dataTransfer: DataTransfer) => void;
 
-function hasFilesInDragDataStore(dataTransfer: DataTransfer) {
+interface UseFileDropResult {
+  isFileDragActive: boolean;
+  dropHandlers: {
+    onDragEnter: (event: DragEvent<HTMLElement>) => void;
+    onDragLeave: (event: DragEvent<HTMLElement>) => void;
+    onDragOver: (event: DragEvent<HTMLElement>) => void;
+    onDrop: (event: DragEvent<HTMLElement>) => void;
+  };
+}
+
+function isFileDrag(dataTransfer: DataTransfer) {
   return dataTransfer.types.includes("Files");
 }
 
-export function useFileDrop(onDataTransferDrop: DataTransferDropHandler) {
-  const [isFileOverDropTarget, setIsFileOverDropTarget] = useState(false);
+/**
+ * Creates event handlers for a drop target and tracks whether a file is currently being dragged over it.
+ *
+ * @param onFileDrop - Called with the drop event's `DataTransfer`
+ * object when one or more files are dropped.
+ * @returns The drop target's active state and event handlers to spread onto
+ * the target element.
+ */
+export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
+  const [isFileDragActive, setIsFileDragActive] = useState(false);
 
   const handleDragEnter = (event: DragEvent<HTMLElement>) => {
-    if (!hasFilesInDragDataStore(event.dataTransfer)) return;
+    if (!isFileDrag(event.dataTransfer)) return;
 
-    setIsFileOverDropTarget(true);
+    setIsFileDragActive(true);
   };
 
   const handleDragOver = (event: DragEvent<HTMLElement>) => {
-    if (!hasFilesInDragDataStore(event.dataTransfer)) return;
+    if (!isFileDrag(event.dataTransfer)) return;
 
-    // Cancelling dragover makes this element a drop target.
+    // cancelling dragover makes this element a drop target
     event.preventDefault();
     event.stopPropagation();
     event.dataTransfer.dropEffect = "copy";
@@ -31,22 +49,22 @@ export function useFileDrop(onDataTransferDrop: DataTransferDropHandler) {
       !(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget);
 
     if (hasLeftDropTarget) {
-      setIsFileOverDropTarget(false);
+      setIsFileDragActive(false);
     }
   };
 
   const handleDrop = (event: DragEvent<HTMLElement>) => {
-    if (!hasFilesInDragDataStore(event.dataTransfer)) return;
+    if (!isFileDrag(event.dataTransfer)) return;
 
     event.preventDefault();
     event.stopPropagation();
-    setIsFileOverDropTarget(false);
-    onDataTransferDrop(event.dataTransfer);
+    setIsFileDragActive(false);
+    onFileDrop(event.dataTransfer);
   };
 
   return {
-    isFileOverDropTarget,
-    dropTargetEventHandlers: {
+    isFileDragActive,
+    dropHandlers: {
       onDragEnter: handleDragEnter,
       onDragLeave: handleDragLeave,
       onDragOver: handleDragOver,

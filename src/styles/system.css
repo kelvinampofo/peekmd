@@ -58,6 +58,10 @@
     --space-64: 64px;
     --border-width-thin: 1px;
     --duration-hover: 150ms;
+    --duration-press: 160ms;
+    --duration-movement: 200ms;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   }
 
   @media (prefers-color-scheme: dark) {
