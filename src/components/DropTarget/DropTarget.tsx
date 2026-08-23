@@ -22,7 +22,7 @@ export default function DropTarget() {
   const [fileReadState, setFileReadState] = useState<FileReadState>({ status: "idle" });
   const latestReadId = useRef(0);
 
-  const { isFileOverDropTarget, dropTargetEventHandlers } = useFileDrop(readDroppedMarkdownFile);
+  const { isFileDragActive, dropHandlers } = useFileDrop(readDroppedMarkdownFile);
 
   function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
     void readMarkdownFile(dataTransfer.files.item(0));
@@ -62,7 +62,7 @@ export default function DropTarget() {
     void readMarkdownFile(file);
   }
 
-  const emptyStateMessage = isFileOverDropTarget
+  const emptyStateMessage = isFileDragActive
     ? "Drop to preview"
     : fileReadState.status === "reading"
       ? "Reading file..."
@@ -74,8 +74,8 @@ export default function DropTarget() {
         className="document-window"
         aria-label="Markdown preview"
         aria-busy={fileReadState.status === "reading"}
-        data-dragging={isFileOverDropTarget || undefined}
-        {...dropTargetEventHandlers}
+        data-dragging={isFileDragActive || undefined}
+        {...dropHandlers}
       >
         {fileReadState.status === "loaded" ? (
           <MarkdownPreview source={fileReadState.source} />
