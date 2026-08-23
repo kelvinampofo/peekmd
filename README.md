@@ -14,6 +14,7 @@ npm run dev
 Before shipping a change:
 
 ```sh
+npm run test
 npm run lint
 npm run fmt:check
 npm run build
