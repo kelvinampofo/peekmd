@@ -65,6 +65,7 @@ export default function DropTarget() {
       <section
         className="document-window"
         aria-label="Markdown preview"
+        aria-busy={fileReadState.status === "reading"}
         data-dragging={isFileOverDropTarget || undefined}
         {...dropTargetEventHandlers}
       >
@@ -74,9 +75,11 @@ export default function DropTarget() {
           <EmptyState message={emptyStateMessage} />
         )}
 
-        <p className="document-window__status" aria-live="polite">
-          {fileReadState.status === "error" ? fileReadState.message : ""}
-        </p>
+        {fileReadState.status === "error" ? (
+          <p className="document-window__status" role="alert">
+            {fileReadState.message}
+          </p>
+        ) : null}
       </section>
     </main>
   );
