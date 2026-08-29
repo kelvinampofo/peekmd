@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { useFileDrop } from "../../hooks/useFileDrop";
+import { useFileDrop } from "../../hooks/useFileDrop/useFileDrop";
 import EmptyState from "../EmptyState/EmptyState";
 import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
 

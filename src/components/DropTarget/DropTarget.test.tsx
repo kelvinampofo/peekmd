@@ -27,55 +27,113 @@ async function selectFile(screen: RenderResult, file: File) {
   await screen.getByLabelText("Open File").upload(file);
 }
 
-describe("opening Markdown files", () => {
-  it.each(["notes.md", "notes.markdown"])("opens %s", async (name) => {
-    const screen = await render(<DropTarget />);
+describe("DropTarget", () => {
+  describe("opening files", () => {
+    it.each(["notes.md", "notes.markdown", "NOTES.MD", "Notes.Markdown"])(
+      "opens %s",
+      async (name) => {
+        const screen = await render(<DropTarget />);
 
-    await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
+        await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
 
-    await expect
-      .element(screen.getByRole("heading", { name: `Preview of ${name}` }))
-      .toBeVisible();
-  });
-
-  it("previews dropped Markdown", async () => {
-    const screen = await render(<DropTarget />);
-
-    dropFile(
-      screen,
-      markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."),
+        await expect
+          .element(screen.getByRole("heading", { name: `Preview of ${name}` }))
+          .toBeVisible();
+      },
     );
 
-    await expect.element(screen.getByRole("heading", { name: "Release notes" })).toBeVisible();
-    await expect.element(screen.getByText("ready to ship")).toBeVisible();
+    it("opens an empty document", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("empty.md", ""));
+
+      await expect.element(screen.getByRole("article")).toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).not.toBeInTheDocument();
+    });
+
+    it("previews a dropped file", async () => {
+      const screen = await render(<DropTarget />);
+
+      dropFile(
+        screen,
+        markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."),
+      );
+
+      await expect.element(screen.getByRole("heading", { name: "Release notes" })).toBeVisible();
+      await expect.element(screen.getByText("ready to ship")).toBeVisible();
+    });
+
+    it("replaces the current preview", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("first.md", "# First document"));
+      await expect.element(screen.getByRole("heading", { name: "First document" })).toBeVisible();
+
+      await selectFile(screen, markdownFile("second.md", "# Second document"));
+
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "First document" }))
+        .not.toBeInTheDocument();
+    });
   });
 
-  it("shows an error for unsupported files", async () => {
-    const screen = await render(<DropTarget />);
+  describe("file reading", () => {
+    it("rejects unsupported files", async () => {
+      const screen = await render(<DropTarget />);
 
-    dropFile(screen, new File(["plain text"], "notes.txt"));
+      dropFile(screen, new File(["plain text"], "notes.txt"));
 
-    await expect.element(screen.getByRole("alert")).toBeVisible();
-    await expect.element(screen.getByText("plain text")).not.toBeInTheDocument();
-  });
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+      await expect.element(screen.getByText("plain text")).not.toBeInTheDocument();
+    });
 
-  it("marks the preview busy while reading", async () => {
-    vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
-    const screen = await render(<DropTarget />);
+    it("marks the preview busy while reading", async () => {
+      vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
+      const screen = await render(<DropTarget />);
 
-    await selectFile(screen, markdownFile("slow.md", ""));
+      await selectFile(screen, markdownFile("slow.md", ""));
 
-    await expect
-      .element(screen.getByRole("region", { name: "Markdown preview" }))
-      .toHaveAttribute("aria-busy", "true");
-  });
+      await expect
+        .element(screen.getByRole("region", { name: "Markdown preview" }))
+        .toHaveAttribute("aria-busy", "true");
+    });
 
-  it("shows an error when reading fails", async () => {
-    vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
-    const screen = await render(<DropTarget />);
+    it("shows an error when reading fails", async () => {
+      vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
+      const screen = await render(<DropTarget />);
 
-    await selectFile(screen, markdownFile("unreadable.md", ""));
+      await selectFile(screen, markdownFile("unreadable.md", ""));
 
-    await expect.element(screen.getByRole("alert")).toBeVisible();
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+    });
+
+    it("keeps the latest selection when reads finish out of order", async () => {
+      const firstRead = Promise.withResolvers<string>();
+      const secondRead = Promise.withResolvers<string>();
+      const reads = new Map([
+        ["first.md", firstRead.promise],
+        ["second.md", secondRead.promise],
+      ]);
+      vi.spyOn(File.prototype, "text").mockImplementation(function (this: File) {
+        return reads.get(this.name) ?? Promise.reject(new Error(`Unexpected file: ${this.name}`));
+      });
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("first.md", ""));
+      await selectFile(screen, markdownFile("second.md", ""));
+
+      secondRead.resolve("# Second document");
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+
+      firstRead.resolve("# First document");
+      await firstRead.promise;
+      await new Promise(requestAnimationFrame);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "First document" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+    });
   });
 });
