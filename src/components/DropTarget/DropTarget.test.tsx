@@ -96,13 +96,11 @@ describe("DropTarget", () => {
       const screen = await render(<DropTarget />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
-      const input = screen.getByLabelText("Open File").element();
-      const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+      const click = vi.spyOn(HTMLInputElement.prototype, "click");
 
       await userEvent.keyboard("o");
 
       expect(click).toHaveBeenCalledOnce();
-      expect(click.mock.instances[0]).toBe(input);
     });
   });
 

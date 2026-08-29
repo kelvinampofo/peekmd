@@ -1,7 +1,17 @@
-import { userEvent } from "vitest/browser";
+import { server, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import FileInput from "./FileInput";
+
+async function tabToNextControl() {
+  if (server.browser === "webkit" && server.platform === "darwin") {
+    // Safari uses Option+Tab to move focus through the page
+    await userEvent.keyboard("{Alt>}{Tab}{/Alt}");
+    return;
+  }
+
+  await userEvent.tab();
+}
 
 describe("FileInput", () => {
   it("exposes a Markdown file picker", async () => {
@@ -31,7 +41,7 @@ describe("FileInput", () => {
     const screen = await render(<FileInput onFileSelect={vi.fn()}>Open File</FileInput>);
 
     const input = screen.getByLabelText("Open File");
-    await userEvent.tab();
+    await tabToNextControl();
 
     await expect.element(input).toHaveFocus();
   });
@@ -45,10 +55,10 @@ describe("FileInput", () => {
       </>,
     );
 
-    await userEvent.tab();
+    await tabToNextControl();
     await expect.element(screen.getByRole("button", { name: "Before" })).toHaveFocus();
 
-    await userEvent.tab();
+    await tabToNextControl();
     await expect.element(screen.getByRole("button", { name: "After" })).toHaveFocus();
   });
 });
