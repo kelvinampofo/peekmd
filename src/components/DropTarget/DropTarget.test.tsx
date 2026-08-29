@@ -1,79 +1,81 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render } from "vitest-browser-react";
+import type { RenderResult } from "vitest-browser-react";
 
 import DropTarget from "./DropTarget";
 
 function markdownFile(name: string, contents: string) {
-  const file = new File([contents], name, { type: "text/markdown" });
-  file.text = vi.fn().mockResolvedValue(contents);
-
-  return file;
+  return new File([contents], name, { type: "text/markdown" });
 }
 
-function dropFile(file: File) {
-  fireEvent.drop(screen.getByRole("region", { name: "Markdown preview" }), {
-    dataTransfer: {
-      types: ["Files"],
-      files: { item: () => file },
-    },
-  });
+function dropFile(screen: RenderResult, file: File) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
+
+  screen
+    .getByRole("region", { name: "Markdown preview" })
+    .element()
+    .dispatchEvent(
+      new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+      }),
+    );
 }
 
-async function selectFile(file: File) {
-  const user = userEvent.setup();
-
-  await user.upload(screen.getByLabelText("Open File"), file);
+async function selectFile(screen: RenderResult, file: File) {
+  await screen.getByLabelText("Open File").upload(file);
 }
 
 describe("opening Markdown files", () => {
   it.each(["notes.md", "notes.markdown"])("opens %s", async (name) => {
-    render(<DropTarget />);
+    const screen = await render(<DropTarget />);
 
-    await selectFile(markdownFile(name, `# Preview of ${name}`));
+    await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
 
-    expect(await screen.findByRole("heading", { name: `Preview of ${name}` })).toBeVisible();
+    await expect
+      .element(screen.getByRole("heading", { name: `Preview of ${name}` }))
+      .toBeVisible();
   });
 
   it("previews dropped Markdown", async () => {
-    render(<DropTarget />);
+    const screen = await render(<DropTarget />);
 
-    dropFile(markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."));
+    dropFile(
+      screen,
+      markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."),
+    );
 
-    expect(await screen.findByRole("heading", { name: "Release notes" })).toBeVisible();
-    expect(screen.getByText("ready to ship")).toBeVisible();
+    await expect.element(screen.getByRole("heading", { name: "Release notes" })).toBeVisible();
+    await expect.element(screen.getByText("ready to ship")).toBeVisible();
   });
 
-  it("shows an error for unsupported files", () => {
-    render(<DropTarget />);
+  it("shows an error for unsupported files", async () => {
+    const screen = await render(<DropTarget />);
 
-    dropFile(new File(["plain text"], "notes.txt"));
+    dropFile(screen, new File(["plain text"], "notes.txt"));
 
-    expect(screen.getByRole("alert")).toBeVisible();
-    expect(screen.queryByText("plain text")).not.toBeInTheDocument();
+    await expect.element(screen.getByRole("alert")).toBeVisible();
+    await expect.element(screen.getByText("plain text")).not.toBeInTheDocument();
   });
 
   it("marks the preview busy while reading", async () => {
-    const file = markdownFile("slow.md", "");
-    file.text = vi.fn().mockReturnValue(new Promise<string>(() => {}));
+    vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
+    const screen = await render(<DropTarget />);
 
-    render(<DropTarget />);
+    await selectFile(screen, markdownFile("slow.md", ""));
 
-    await selectFile(file);
-
-    expect(screen.getByRole("region", { name: "Markdown preview" })).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
+    await expect
+      .element(screen.getByRole("region", { name: "Markdown preview" }))
+      .toHaveAttribute("aria-busy", "true");
   });
 
   it("shows an error when reading fails", async () => {
-    const file = markdownFile("unreadable.md", "");
-    file.text = vi.fn().mockRejectedValue(new Error("File is unavailable"));
+    vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
+    const screen = await render(<DropTarget />);
 
-    render(<DropTarget />);
+    await selectFile(screen, markdownFile("unreadable.md", ""));
 
-    await selectFile(file);
-
-    expect(await screen.findByRole("alert")).toBeVisible();
+    await expect.element(screen.getByRole("alert")).toBeVisible();
   });
 });
