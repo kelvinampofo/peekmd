@@ -1,16 +1,17 @@
-import { useId } from "react";
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, PropsWithChildren, Ref } from "react";
 
 import "./FileInput.css";
 
 interface FileInputProps {
-  children: ReactNode;
+  ref?: Ref<HTMLInputElement>;
   onFileSelect: (file: File) => void;
 }
 
-export default function FileInput({ children, onFileSelect }: FileInputProps) {
-  const id = useId();
-
+export default function FileInput({
+  children,
+  ref,
+  onFileSelect,
+}: PropsWithChildren<FileInputProps>) {
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.item(0);
 
@@ -22,16 +23,24 @@ export default function FileInput({ children, onFileSelect }: FileInputProps) {
     event.target.value = "";
   }
 
-  return (
-    <label className="file-input__label" htmlFor={id}>
+  const input = (
+    <input
+      ref={ref}
+      className="file-input__control"
+      type="file"
+      accept=".md,.markdown,text/markdown"
+      aria-label={children ? undefined : "Open File"}
+      tabIndex={children ? undefined : -1}
+      onChange={handleChange}
+    />
+  );
+
+  return children ? (
+    <label className="file-input__label">
       {children}
-      <input
-        id={id}
-        className="file-input__control"
-        type="file"
-        accept=".md,.markdown,text/markdown"
-        onChange={handleChange}
-      />
+      {input}
     </label>
+  ) : (
+    input
   );
 }

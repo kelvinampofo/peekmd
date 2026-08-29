@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { useFileDrop } from "../../hooks/useFileDrop/useFileDrop";
+import { useShortcuts } from "../../hooks/useShortcuts/useShortcuts";
 import EmptyState from "../EmptyState/EmptyState";
+import FileInput from "../FileInput/FileInput";
 import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
 
 import "./DropTarget.css";
@@ -13,9 +15,25 @@ type FileReadState =
 
 export default function DropTarget() {
   const [fileReadState, setFileReadState] = useState<FileReadState>({ status: "idle" });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const latestReadId = useRef(0);
 
-  const { isFileDragActive, dropHandlers } = useFileDrop(readDroppedMarkdownFile);
+  const { isFileDragActive, dropHandlers } = useFileDrop(handleFileOpen);
+
+  useShortcuts({
+    C: clearPreview,
+    O: openFilePicker,
+  });
+
+  function openFilePicker() {
+    fileInputRef.current?.click();
+  }
+
+  function clearPreview() {
+    latestReadId.current += 1;
+    setFileReadState({ status: "idle" });
+  }
 
   async function readMarkdownFile(file: File | null) {
     latestReadId.current += 1;
@@ -50,11 +68,7 @@ export default function DropTarget() {
     }
   }
 
-  function readDroppedMarkdownFile(dataTransfer: DataTransfer) {
-    void readMarkdownFile(dataTransfer.files.item(0));
-  }
-
-  function handleFileSelection(file: File) {
+  function handleFileOpen(file: File) {
     void readMarkdownFile(file);
   }
 
@@ -68,11 +82,15 @@ export default function DropTarget() {
         {...dropHandlers}
       >
         {fileReadState.status === "loaded" ? (
-          <MarkdownPreview source={fileReadState.source} />
+          <>
+            <MarkdownPreview source={fileReadState.source} />
+            <FileInput ref={fileInputRef} onFileSelect={handleFileOpen} />
+          </>
         ) : (
           <EmptyState
+            ref={fileInputRef}
             message={isFileDragActive ? "Drop to preview" : "Drop a Markdown file"}
-            onFileSelect={handleFileSelection}
+            onFileSelect={handleFileOpen}
             state={isFileDragActive ? "dragover" : "idle"}
           />
         )}

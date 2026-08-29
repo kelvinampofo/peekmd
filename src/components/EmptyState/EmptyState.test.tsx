@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { render } from "vitest-browser-react";
 
 import EmptyState from "./EmptyState";
@@ -23,5 +24,19 @@ describe("EmptyState", () => {
 
     expect(onFileSelect).toHaveBeenCalledOnce();
     expect(onFileSelect).toHaveBeenCalledWith(file);
+  });
+
+  it("exposes the file input through its ref", async () => {
+    const inputRef = createRef<HTMLInputElement>();
+    const screen = await render(
+      <EmptyState
+        ref={inputRef}
+        message="Drop a Markdown file"
+        onFileSelect={vi.fn()}
+        state="idle"
+      />,
+    );
+
+    expect(inputRef.current).toBe(screen.getByLabelText("Open File").element());
   });
 });

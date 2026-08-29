@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { DragEvent } from "react";
 
-type FileDropHandler = (dataTransfer: DataTransfer) => void;
+type FileDropHandler = (file: File) => void;
 
 interface UseFileDropResult {
   isFileDragActive: boolean;
@@ -20,8 +20,7 @@ function isFileDrag(dataTransfer: DataTransfer) {
 /**
  * Creates event handlers for a drop target and tracks whether a file is currently being dragged over it.
  *
- * @param onFileDrop - Called with the drop event's `DataTransfer`
- * object when one or more files are dropped.
+ * @param onFileDrop - Called with the first file when one or more files are dropped.
  * @returns The drop target's active state and event handlers to spread onto
  * the target element.
  */
@@ -59,7 +58,12 @@ export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
     event.preventDefault();
     event.stopPropagation();
     setIsFileDragActive(false);
-    onFileDrop(event.dataTransfer);
+
+    const file = event.dataTransfer.files.item(0);
+
+    if (file) {
+      onFileDrop(file);
+    }
   };
 
   return {

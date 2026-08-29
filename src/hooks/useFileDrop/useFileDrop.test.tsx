@@ -3,7 +3,7 @@ import { render } from "vitest-browser-react";
 import { useFileDrop } from "./useFileDrop";
 
 interface DropAreaProps {
-  onFileDrop: (dataTransfer: DataTransfer) => void;
+  onFileDrop: (file: File) => void;
   onDragOver?: () => void;
   onDrop?: () => void;
 }
@@ -78,6 +78,7 @@ describe("useFileDrop", () => {
     it("accepts file drags as copies", async () => {
       const transfer = fileTransfer();
       const setDropEffect = vi.spyOn(DataTransfer.prototype, "dropEffect", "set");
+
       const screen = await render(<DropArea onFileDrop={vi.fn()} />);
 
       const accepted = dispatchDragEvent(
@@ -109,18 +110,22 @@ describe("useFileDrop", () => {
       const onFileDrop = vi.fn();
       const onParentDrop = vi.fn();
       const transfer = fileTransfer();
+
       const screen = await render(<DropArea onFileDrop={onFileDrop} onDrop={onParentDrop} />);
 
       const dropArea = screen.getByRole("region", { name: "Drop area" });
       const dropAreaElement = dropArea.element();
 
       dispatchDragEvent(dropAreaElement, "dragenter", transfer);
+
       const accepted = dispatchDragEvent(dropAreaElement, "drop", transfer);
 
       expect(accepted).toBe(false);
+
       await expect.element(dropArea).toHaveAttribute("data-active", "false");
+
       expect(onFileDrop).toHaveBeenCalledOnce();
-      expect(onFileDrop).toHaveBeenCalledWith(transfer);
+      expect(onFileDrop).toHaveBeenCalledWith(transfer.files.item(0));
       expect(onParentDrop).not.toHaveBeenCalled();
     });
 
@@ -129,6 +134,7 @@ describe("useFileDrop", () => {
       const onParentDragOver = vi.fn();
       const onParentDrop = vi.fn();
       const transfer = textTransfer();
+
       const screen = await render(
         <DropArea onFileDrop={onFileDrop} onDragOver={onParentDragOver} onDrop={onParentDrop} />,
       );
@@ -137,10 +143,12 @@ describe("useFileDrop", () => {
       const dropAreaElement = dropArea.element();
 
       dispatchDragEvent(dropAreaElement, "dragenter", transfer);
+
       const dragOverAccepted = dispatchDragEvent(dropAreaElement, "dragover", transfer);
       const dropAccepted = dispatchDragEvent(dropAreaElement, "drop", transfer);
 
       await expect.element(dropArea).toHaveAttribute("data-active", "false");
+
       expect(dragOverAccepted).toBe(true);
       expect(dropAccepted).toBe(true);
       expect(transfer.dropEffect).toBe("none");

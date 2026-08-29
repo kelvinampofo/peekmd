@@ -1,3 +1,4 @@
+import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { RenderResult } from "vitest-browser-react";
 
@@ -78,6 +79,33 @@ describe("DropTarget", () => {
     });
   });
 
+  describe("shortcuts", () => {
+    it("'C' clears the preview", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+
+      await userEvent.keyboard("c");
+
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
+    });
+
+    it("'O' opens the file picker", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+      const input = screen.getByLabelText("Open File").element();
+      const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+
+      await userEvent.keyboard("o");
+
+      expect(click).toHaveBeenCalledOnce();
+      expect(click.mock.instances[0]).toBe(input);
+    });
+  });
+
   describe("file reading", () => {
     it("rejects unsupported files", async () => {
       const screen = await render(<DropTarget />);
@@ -106,6 +134,27 @@ describe("DropTarget", () => {
       await selectFile(screen, markdownFile("unreadable.md", ""));
 
       await expect.element(screen.getByRole("alert")).toBeVisible();
+    });
+
+    it("ignores a read completed after clearing", async () => {
+      const pendingRead = Promise.withResolvers<string>();
+      vi.spyOn(File.prototype, "text").mockReturnValue(pendingRead.promise);
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("slow.md", ""));
+      await expect
+        .element(screen.getByRole("region", { name: "Markdown preview" }))
+        .toHaveAttribute("aria-busy", "true");
+
+      await userEvent.keyboard("c");
+      pendingRead.resolve("# Stale preview");
+      await pendingRead.promise;
+      await new Promise(requestAnimationFrame);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Stale preview" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
     });
 
     it("keeps the latest selection when reads finish out of order", async () => {
