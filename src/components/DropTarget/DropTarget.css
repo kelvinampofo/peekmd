@@ -1,26 +1,27 @@
 @layer components {
   .workspace {
-    min-height: 100dvh;
+    height: 100dvh;
     display: grid;
-    place-items: end center;
+    grid-template-rows: minmax(0, 1fr);
+    padding: var(--space-48);
     background: var(--color-grey-2);
   }
 
   .document-window {
     position: relative;
-    width: calc(100% - (var(--space-48) * 2));
-    height: calc(100dvh - var(--space-48));
-    min-height: 320px;
+    width: 100%;
+    min-height: 0;
     overflow: auto;
+    overscroll-behavior-y: contain;
     display: grid;
-    grid-template-rows: minmax(0, 1fr);
+    grid-template-rows: 1fr auto;
     background: var(--color-background);
     transition: background-color var(--duration-hover);
-  }
 
-  .document-window[data-dragging] {
-    background: var(--color-grey-3);
-    box-shadow: inset 0 0 0 1px var(--color-grey-8);
+    &[data-dragging] {
+      background: var(--color-grey-3);
+      box-shadow: inset 0 0 0 1px var(--color-grey-8);
+    }
   }
 
   .document-window__status {
@@ -33,9 +34,8 @@
   }
 
   @media (max-width: 640px) {
-    .document-window {
-      width: calc(100% - (var(--space-16) * 2));
-      height: calc(100dvh - var(--space-16));
+    .workspace {
+      padding: var(--space-16);
     }
   }
 }

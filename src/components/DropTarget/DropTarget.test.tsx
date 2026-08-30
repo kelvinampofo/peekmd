@@ -2,6 +2,7 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { RenderResult } from "vitest-browser-react";
 
+import { startPull, touchEvent } from "../../test/touch";
 import DropTarget from "./DropTarget";
 
 function markdownFile(name: string, contents: string) {
@@ -26,6 +27,26 @@ function dropFile(screen: RenderResult, file: File) {
 
 async function selectFile(screen: RenderResult, file: File) {
   await screen.getByLabelText("Open File").upload(file);
+}
+
+function documentWindow(screen: RenderResult) {
+  return screen.getByRole("region", { name: "Markdown preview" }).element();
+}
+
+async function pullToClear(screen: RenderResult) {
+  const scroller = documentWindow(screen);
+
+  await new Promise(requestAnimationFrame);
+
+  scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+
+  const endY = startPull(scroller, 200);
+
+  expect(scroller.scrollTop).toBeGreaterThan(0);
+
+  scroller.dispatchEvent(touchEvent("touchend", [endY]));
+
+  return scroller;
 }
 
 describe("DropTarget", () => {
@@ -101,6 +122,35 @@ describe("DropTarget", () => {
       await userEvent.keyboard("o");
 
       expect(click).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("pulling past the end of a document", () => {
+    it("returns to the top of the empty state after clearing the preview", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
+
+      const article = screen.getByRole("article").element();
+      article.style.height = "2000px";
+
+      const scroller = await pullToClear(screen);
+
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
+      expect(scroller.scrollTop).toBe(0);
+    });
+  });
+
+  describe("actions at the end of a document", () => {
+    it("hides touch actions for a precise pointer", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+
+      await expect.element(screen.getByText("Clear")).not.toBeVisible();
+      await expect.element(screen.getByText("Open File")).not.toBeVisible();
     });
   });
 

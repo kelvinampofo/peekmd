@@ -1,49 +1,13 @@
 @layer components {
-  .file-input__label {
-    position: relative;
-    padding: var(--space-4) var(--space-8);
-    border: 1px solid var(--color-grey-7);
-    background: var(--color-background);
-    color: var(--color-foreground);
-    font-size: 0.8125rem;
-    font-weight: 500;
-    line-height: 1.5;
-    touch-action: manipulation;
-    user-select: none;
-    -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
-    transition:
-      background-color var(--duration-hover),
-      border-color var(--duration-hover),
-      color var(--duration-hover),
-      scale var(--duration-press) var(--ease-out);
-  }
-
-  /* increased pseudo hit target size for easier mobile pressing */
-  .file-input__label::after {
-    --hit-target-size: -8px;
-    position: absolute;
-    inset: var(--hit-target-size) 0;
-    content: "";
-  }
-
-  @media (hover: hover) and (pointer: fine) {
-    .file-input__label:hover {
-      border-color: var(--color-grey-8);
-      background: var(--color-grey-3);
-      color: var(--color-foreground);
-    }
-  }
-
-  .file-input__label:active {
-    background: var(--color-grey-6);
-    scale: 0.98;
-  }
-
   .file-input__label:has(.file-input__control:focus-visible) {
     outline: 2px solid transparent;
     outline-offset: 2px;
     box-shadow: var(--focus-ring);
+
+    @media (forced-colors: active) {
+      outline-color: Highlight;
+      box-shadow: none;
+    }
   }
 
   .file-input__control {
@@ -53,16 +17,9 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-  }
 
-  .file-input__control:focus-visible {
-    outline: none;
-    box-shadow: none;
-  }
-
-  @media (forced-colors: active) {
-    .file-input__label:has(.file-input__control:focus-visible) {
-      outline-color: Highlight;
+    &:focus-visible {
+      outline: none;
       box-shadow: none;
     }
   }
