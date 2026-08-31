@@ -4,7 +4,7 @@ import FileInput from "../FileInput/FileInput";
 import "./DocumentActions.css";
 
 interface DocumentActionsProps {
-  ref?: Ref<HTMLInputElement>;
+  ref?: Ref<HTMLInputElement> | undefined;
   onClear: () => void;
   onFileSelect: (file: File) => void;
 }

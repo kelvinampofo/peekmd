@@ -4,7 +4,7 @@ import FileInput from "../FileInput/FileInput";
 import "./EmptyState.css";
 
 interface EmptyStateProps {
-  ref?: Ref<HTMLInputElement>;
+  ref?: Ref<HTMLInputElement> | undefined;
   message: string;
   onFileSelect: (file: File) => void;
   state: "idle" | "dragover";
