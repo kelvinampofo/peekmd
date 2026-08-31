@@ -31,6 +31,9 @@
     --color-grey-7: #dbdbdb;
     --color-grey-8: #c7c7c7;
     --color-grey-9: #8f8f8f;
+    --color-primary: #3a3a3a;
+    --color-primary-hover: #252525;
+    --color-primary-active: #151515;
     --color-orange: oklch(66.7% 0.224 36.8deg);
     --color-focus-inner-light: hsl(0, 0%, 99%);
     --color-focus-inner-dark: hsl(0, 0%, 8.63%);
@@ -76,6 +79,9 @@
       --color-grey-7: #3e3e3e;
       --color-grey-8: #505050;
       --color-grey-9: #707070;
+      --color-primary: #ededed;
+      --color-primary-hover: #ffffff;
+      --color-primary-active: #d4d4d4;
       --focus-ring: 0 0 0 2px var(--color-focus-inner-dark), 0 0 0 4px var(--color-focus-outer);
     }
   }
@@ -91,9 +97,7 @@
   .button {
     position: relative;
     padding: var(--space-4) var(--space-8);
-    border: var(--border-width-thin) solid var(--color-grey-7);
-    background: var(--color-background);
-    color: var(--color-foreground);
+    border: var(--border-width-thin) solid transparent;
     font-size: 0.8125rem;
     font-weight: 500;
     line-height: 1.5;
@@ -107,13 +111,6 @@
       border-color var(--duration-hover),
       scale var(--duration-press) var(--ease-out);
 
-    @media (any-hover: hover) {
-      &:hover {
-        border-color: var(--color-grey-8);
-        background: var(--color-grey-3);
-      }
-    }
-
     @media (any-pointer: coarse) {
       &::after {
         position: absolute;
@@ -123,13 +120,45 @@
       }
     }
 
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+
+  .button--secondary {
+    border-color: var(--color-grey-7);
+    background: var(--color-background);
+    color: var(--color-foreground);
+
+    @media (any-hover: hover) {
+      &:hover {
+        border-color: var(--color-grey-8);
+        background: var(--color-grey-3);
+      }
+    }
+
     &:active {
       background: var(--color-grey-6);
       scale: 0.98;
     }
+  }
 
-    @media (prefers-reduced-motion: reduce) {
-      transition: none;
+  .button--primary {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: var(--color-background);
+
+    @media (any-hover: hover) {
+      &:hover {
+        border-color: var(--color-primary-hover);
+        background: var(--color-primary-hover);
+      }
+    }
+
+    &:active {
+      border-color: var(--color-primary-active);
+      background: var(--color-primary-active);
+      scale: 0.98;
     }
   }
 }

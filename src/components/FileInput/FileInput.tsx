@@ -36,7 +36,7 @@ export default function FileInput({
   );
 
   return children ? (
-    <label className="button file-input__label">
+    <label className="button button--primary file-input__label">
       {children}
       {input}
     </label>

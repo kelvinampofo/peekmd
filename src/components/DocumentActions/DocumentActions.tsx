@@ -12,7 +12,11 @@ interface DocumentActionsProps {
 export default function DocumentActions({ ref, onClear, onFileSelect }: DocumentActionsProps) {
   return (
     <div className="document-actions">
-      <button type="button" className="button document-actions__clear" onClick={onClear}>
+      <button
+        type="button"
+        className="button button--secondary document-actions__clear"
+        onClick={onClear}
+      >
         Clear
       </button>
       <FileInput ref={ref} onFileSelect={onFileSelect}>
