@@ -87,6 +87,7 @@ export default function DropTarget() {
         aria-label="Markdown preview"
         aria-busy={fileReadState.status === "reading"}
         data-dragging={isFileDragActive || undefined}
+        data-loaded={fileReadState.status === "loaded" || undefined}
         {...dropHandlers}
       >
         {fileReadState.status === "loaded" ? (

@@ -53,6 +53,14 @@ async function pullToClear(screen: RenderResult) {
 }
 
 describe("DropTarget", () => {
+  describe("empty state", () => {
+    it("does not scroll", async () => {
+      const screen = await render(<DropTarget />);
+
+      expect(getComputedStyle(documentWindow(screen)).overflow).toBe("hidden");
+    });
+  });
+
   describe("opening files", () => {
     it.each(["notes.md", "notes.markdown", "NOTES.MD", "Notes.Markdown"])(
       "opens %s",
@@ -137,6 +145,8 @@ describe("DropTarget", () => {
 
       const article = screen.getByRole("article").element();
       article.style.height = "2000px";
+
+      expect(getComputedStyle(documentWindow(screen)).overflow).toBe("auto");
 
       const scroller = await pullToClear(screen);
 
