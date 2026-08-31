@@ -1,79 +1,186 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "vitest/browser";
+import { render } from "vitest-browser-react";
+import type { RenderResult } from "vitest-browser-react";
 
 import DropTarget from "./DropTarget";
 
 function markdownFile(name: string, contents: string) {
-  const file = new File([contents], name, { type: "text/markdown" });
-  file.text = vi.fn().mockResolvedValue(contents);
-
-  return file;
+  return new File([contents], name, { type: "text/markdown" });
 }
 
-function dropFile(file: File) {
-  fireEvent.drop(screen.getByRole("region", { name: "Markdown preview" }), {
-    dataTransfer: {
-      types: ["Files"],
-      files: { item: () => file },
-    },
-  });
-}
+function dropFile(screen: RenderResult, file: File) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.items.add(file);
 
-async function selectFile(file: File) {
-  const user = userEvent.setup();
-
-  await user.upload(screen.getByLabelText("Open File"), file);
-}
-
-describe("opening Markdown files", () => {
-  it.each(["notes.md", "notes.markdown"])("opens %s", async (name) => {
-    render(<DropTarget />);
-
-    await selectFile(markdownFile(name, `# Preview of ${name}`));
-
-    expect(await screen.findByRole("heading", { name: `Preview of ${name}` })).toBeVisible();
-  });
-
-  it("previews dropped Markdown", async () => {
-    render(<DropTarget />);
-
-    dropFile(markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."));
-
-    expect(await screen.findByRole("heading", { name: "Release notes" })).toBeVisible();
-    expect(screen.getByText("ready to ship")).toBeVisible();
-  });
-
-  it("shows an error for unsupported files", () => {
-    render(<DropTarget />);
-
-    dropFile(new File(["plain text"], "notes.txt"));
-
-    expect(screen.getByRole("alert")).toBeVisible();
-    expect(screen.queryByText("plain text")).not.toBeInTheDocument();
-  });
-
-  it("marks the preview busy while reading", async () => {
-    const file = markdownFile("slow.md", "");
-    file.text = vi.fn().mockReturnValue(new Promise<string>(() => {}));
-
-    render(<DropTarget />);
-
-    await selectFile(file);
-
-    expect(screen.getByRole("region", { name: "Markdown preview" })).toHaveAttribute(
-      "aria-busy",
-      "true",
+  screen
+    .getByRole("region", { name: "Markdown preview" })
+    .element()
+    .dispatchEvent(
+      new DragEvent("drop", {
+        bubbles: true,
+        cancelable: true,
+        dataTransfer,
+      }),
     );
+}
+
+async function selectFile(screen: RenderResult, file: File) {
+  await screen.getByLabelText("Open File").upload(file);
+}
+
+describe("DropTarget", () => {
+  describe("opening files", () => {
+    it.each(["notes.md", "notes.markdown", "NOTES.MD", "Notes.Markdown"])(
+      "opens %s",
+      async (name) => {
+        const screen = await render(<DropTarget />);
+
+        await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
+
+        await expect
+          .element(screen.getByRole("heading", { name: `Preview of ${name}` }))
+          .toBeVisible();
+      },
+    );
+
+    it("opens an empty document", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("empty.md", ""));
+
+      await expect.element(screen.getByRole("article")).toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).not.toBeInTheDocument();
+    });
+
+    it("previews a dropped file", async () => {
+      const screen = await render(<DropTarget />);
+
+      dropFile(
+        screen,
+        markdownFile("release-notes.md", "# Release notes\n\nThis is **ready to ship**."),
+      );
+
+      await expect.element(screen.getByRole("heading", { name: "Release notes" })).toBeVisible();
+      await expect.element(screen.getByText("ready to ship")).toBeVisible();
+    });
+
+    it("replaces the current preview", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("first.md", "# First document"));
+      await expect.element(screen.getByRole("heading", { name: "First document" })).toBeVisible();
+
+      await selectFile(screen, markdownFile("second.md", "# Second document"));
+
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+      await expect
+        .element(screen.getByRole("heading", { name: "First document" }))
+        .not.toBeInTheDocument();
+    });
   });
 
-  it("shows an error when reading fails", async () => {
-    const file = markdownFile("unreadable.md", "");
-    file.text = vi.fn().mockRejectedValue(new Error("File is unavailable"));
+  describe("shortcuts", () => {
+    it("'C' clears the preview", async () => {
+      const screen = await render(<DropTarget />);
 
-    render(<DropTarget />);
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
 
-    await selectFile(file);
+      await userEvent.keyboard("c");
 
-    expect(await screen.findByRole("alert")).toBeVisible();
+      await expect.element(screen.getByRole("heading", { name: "Notes" })).not.toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
+    });
+
+    it("'O' opens the file picker", async () => {
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("notes.md", "# Notes"));
+      const click = vi.spyOn(HTMLInputElement.prototype, "click");
+
+      await userEvent.keyboard("o");
+
+      expect(click).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("file reading", () => {
+    it("rejects unsupported files", async () => {
+      const screen = await render(<DropTarget />);
+
+      dropFile(screen, new File(["plain text"], "notes.txt"));
+
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+      await expect.element(screen.getByText("plain text")).not.toBeInTheDocument();
+    });
+
+    it("marks the preview busy while reading", async () => {
+      vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("slow.md", ""));
+
+      await expect
+        .element(screen.getByRole("region", { name: "Markdown preview" }))
+        .toHaveAttribute("aria-busy", "true");
+    });
+
+    it("shows an error when reading fails", async () => {
+      vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("unreadable.md", ""));
+
+      await expect.element(screen.getByRole("alert")).toBeVisible();
+    });
+
+    it("ignores a read completed after clearing", async () => {
+      const pendingRead = Promise.withResolvers<string>();
+      vi.spyOn(File.prototype, "text").mockReturnValue(pendingRead.promise);
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("slow.md", ""));
+      await expect
+        .element(screen.getByRole("region", { name: "Markdown preview" }))
+        .toHaveAttribute("aria-busy", "true");
+
+      await userEvent.keyboard("c");
+      pendingRead.resolve("# Stale preview");
+      await pendingRead.promise;
+      await new Promise(requestAnimationFrame);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "Stale preview" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
+    });
+
+    it("keeps the latest selection when reads finish out of order", async () => {
+      const firstRead = Promise.withResolvers<string>();
+      const secondRead = Promise.withResolvers<string>();
+      const reads = new Map([
+        ["first.md", firstRead.promise],
+        ["second.md", secondRead.promise],
+      ]);
+      vi.spyOn(File.prototype, "text").mockImplementation(function (this: File) {
+        return reads.get(this.name) ?? Promise.reject(new Error(`Unexpected file: ${this.name}`));
+      });
+      const screen = await render(<DropTarget />);
+
+      await selectFile(screen, markdownFile("first.md", ""));
+      await selectFile(screen, markdownFile("second.md", ""));
+
+      secondRead.resolve("# Second document");
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+
+      firstRead.resolve("# First document");
+      await firstRead.promise;
+      await new Promise(requestAnimationFrame);
+
+      await expect
+        .element(screen.getByRole("heading", { name: "First document" }))
+        .not.toBeInTheDocument();
+      await expect.element(screen.getByRole("heading", { name: "Second document" })).toBeVisible();
+    });
   });
 });

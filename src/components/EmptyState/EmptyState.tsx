@@ -1,14 +1,16 @@
+import type { Ref } from "react";
 import FileInput from "../FileInput/FileInput";
 
 import "./EmptyState.css";
 
 interface EmptyStateProps {
+  ref?: Ref<HTMLInputElement>;
   message: string;
   onFileSelect: (file: File) => void;
   state: "idle" | "dragover";
 }
 
-export default function EmptyState({ message, onFileSelect, state }: EmptyStateProps) {
+export default function EmptyState({ ref, message, onFileSelect, state }: EmptyStateProps) {
   return (
     <div className="empty-state" data-state={state}>
       <div className="empty-state__document-fan" aria-hidden="true">
@@ -18,7 +20,9 @@ export default function EmptyState({ message, onFileSelect, state }: EmptyStateP
       </div>
       <p>{message}</p>
       <span>or</span>
-      <FileInput onFileSelect={onFileSelect}>Open File</FileInput>
+      <FileInput ref={ref} onFileSelect={onFileSelect}>
+        Open File
+      </FileInput>
     </div>
   );
 }
