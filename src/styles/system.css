@@ -45,6 +45,7 @@
       monospace;
     --line-height-base: 1.75;
     --content-max-width: 760px;
+    --content-width: min(calc(100% - var(--space-26)), var(--content-max-width));
     --space-4: 4px;
     --space-8: 8px;
     --space-12: 12px;
@@ -86,6 +87,53 @@
   }
 }
 
+@layer components {
+  .button {
+    position: relative;
+    padding: var(--space-4) var(--space-8);
+    border: var(--border-width-thin) solid var(--color-grey-7);
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    line-height: 1.5;
+    cursor: pointer;
+    touch-action: manipulation;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color var(--duration-hover),
+      border-color var(--duration-hover),
+      scale var(--duration-press) var(--ease-out);
+
+    @media (any-hover: hover) {
+      &:hover {
+        border-color: var(--color-grey-8);
+        background: var(--color-grey-3);
+      }
+    }
+
+    @media (any-pointer: coarse) {
+      &::after {
+        position: absolute;
+        inset-block: calc(var(--space-8) * -1);
+        inset-inline: 0;
+        content: "";
+      }
+    }
+
+    &:active {
+      background: var(--color-grey-6);
+      scale: 0.98;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      transition: none;
+    }
+  }
+}
+
 @layer base {
   :root {
     color-scheme: light dark;
@@ -98,8 +146,8 @@
 
   body {
     min-width: 320px;
-    min-height: 100vh;
-    overflow-x: hidden;
+    height: 100dvh;
+    overflow: hidden;
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-family-sans);

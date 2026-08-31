@@ -1,6 +1,6 @@
 @layer components {
   .markdown-preview {
-    width: min(calc(100% - var(--space-26)), var(--content-max-width));
+    width: var(--content-width);
     min-width: 0;
     padding-block: var(--space-42);
     place-self: start center;

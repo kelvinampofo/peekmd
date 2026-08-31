@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import { useFileDrop } from "../../hooks/useFileDrop/useFileDrop";
+import { usePullToClear } from "../../hooks/usePullToClear/usePullToClear";
 import { useShortcuts } from "../../hooks/useShortcuts/useShortcuts";
+import DocumentActions from "../DocumentActions/DocumentActions";
 import EmptyState from "../EmptyState/EmptyState";
-import FileInput from "../FileInput/FileInput";
 import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
 
 import "./DropTarget.css";
@@ -21,6 +22,11 @@ export default function DropTarget() {
 
   const { isFileDragActive, dropHandlers } = useFileDrop(handleFileOpen);
 
+  const scrollRef = usePullToClear({
+    enabled: fileReadState.status === "loaded",
+    onClear: clearPreview,
+  });
+
   useShortcuts({
     C: clearPreview,
     O: openFilePicker,
@@ -32,6 +38,7 @@ export default function DropTarget() {
 
   function clearPreview() {
     latestReadId.current += 1;
+    if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setFileReadState({ status: "idle" });
   }
 
@@ -75,16 +82,22 @@ export default function DropTarget() {
   return (
     <main className="workspace">
       <section
+        ref={scrollRef}
         className="document-window"
         aria-label="Markdown preview"
         aria-busy={fileReadState.status === "reading"}
         data-dragging={isFileDragActive || undefined}
+        data-loaded={fileReadState.status === "loaded" || undefined}
         {...dropHandlers}
       >
         {fileReadState.status === "loaded" ? (
           <>
             <MarkdownPreview source={fileReadState.source} />
-            <FileInput ref={fileInputRef} onFileSelect={handleFileOpen} />
+            <DocumentActions
+              ref={fileInputRef}
+              onClear={clearPreview}
+              onFileSelect={handleFileOpen}
+            />
           </>
         ) : (
           <EmptyState
