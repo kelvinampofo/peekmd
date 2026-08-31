@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     globals: true,
     restoreMocks: true,
+    tags: [{ name: "integration", description: "interactions between components" }],
     browser: {
       enabled: true,
       headless: true,

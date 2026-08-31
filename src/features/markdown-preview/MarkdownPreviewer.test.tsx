@@ -52,7 +52,7 @@ async function pullToClear(screen: RenderResult) {
   return scroller;
 }
 
-describe("MarkdownPreviewer", () => {
+describe("MarkdownPreviewer", { tags: "integration" }, () => {
   describe("empty state", () => {
     it("does not scroll", async () => {
       const screen = await render(<MarkdownPreviewer />);
@@ -225,6 +225,7 @@ describe("MarkdownPreviewer", () => {
         ["first.md", firstRead.promise],
         ["second.md", secondRead.promise],
       ]);
+
       vi.spyOn(File.prototype, "text").mockImplementation(function (this: File) {
         return reads.get(this.name) ?? Promise.reject(new Error(`Unexpected file: ${this.name}`));
       });
