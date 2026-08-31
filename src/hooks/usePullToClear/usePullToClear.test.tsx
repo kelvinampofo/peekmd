@@ -22,8 +22,9 @@ describe("usePullToClear", () => {
   async function renderScroller() {
     const onClear = vi.fn();
     const screen = await render(<Scroller onClear={onClear} />);
+    const scrollerLocator = screen.getByRole("region");
 
-    return { onClear, scroller: screen.getByRole("region").element() };
+    return { onClear, scroller: scrollerLocator.element(), scrollerLocator };
   }
 
   it("clears when a pull is released past the threshold", async () => {
@@ -42,6 +43,35 @@ describe("usePullToClear", () => {
     scroller.dispatchEvent(touchEvent("touchend", [endY]));
 
     expect(onClear).not.toHaveBeenCalled();
+  });
+
+  it("tracks pull progress against the clear threshold", async () => {
+    const { scroller, scrollerLocator } = await renderScroller();
+
+    startPull(scroller, 80);
+
+    expect(scroller.style.getPropertyValue("--clear-progress")).toBe("0.5");
+    await expect.element(scrollerLocator).toHaveAttribute("data-clear-pulling");
+    await expect.element(scrollerLocator).not.toHaveAttribute("data-clear-ready");
+  });
+
+  it("caps pull progress when the threshold is crossed", async () => {
+    const { scroller, scrollerLocator } = await renderScroller();
+
+    startPull(scroller, 300);
+
+    expect(scroller.style.getPropertyValue("--clear-progress")).toBe("1");
+    await expect.element(scrollerLocator).toHaveAttribute("data-clear-ready");
+  });
+
+  it("resets pull progress when a short pull is released", async () => {
+    const { scroller, scrollerLocator } = await renderScroller();
+    const endY = startPull(scroller, 60);
+
+    scroller.dispatchEvent(touchEvent("touchend", [endY]));
+
+    expect(scroller.style.getPropertyValue("--clear-progress")).toBe("");
+    await expect.element(scrollerLocator).not.toHaveAttribute("data-clear-pulling");
   });
 
   it("leaves scrolling alone until the end of the document is reached", async () => {
