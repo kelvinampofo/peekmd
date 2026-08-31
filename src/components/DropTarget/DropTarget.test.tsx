@@ -38,9 +38,12 @@ async function pullToClear(screen: RenderResult) {
 
   await new Promise(requestAnimationFrame);
 
-  scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
+  const endY = await vi.waitFor(() => {
+    const pullEndY = startPull(scroller, 200);
+    expect(scroller.hasAttribute("data-clear-ready")).toBe(true);
 
-  const endY = startPull(scroller, 200);
+    return pullEndY;
+  });
 
   expect(scroller.scrollTop).toBeGreaterThan(0);
 
