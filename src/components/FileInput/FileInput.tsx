@@ -3,7 +3,7 @@ import type { ChangeEvent, PropsWithChildren, Ref } from "react";
 import "./FileInput.css";
 
 interface FileInputProps {
-  ref?: Ref<HTMLInputElement>;
+  ref?: Ref<HTMLInputElement> | undefined;
   onFileSelect: (file: File) => void;
 }
 

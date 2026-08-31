@@ -45,7 +45,7 @@ function dispatchDragEvent(
       bubbles: true,
       cancelable: true,
       dataTransfer,
-      relatedTarget,
+      relatedTarget: relatedTarget ?? null,
     }),
   );
 }
