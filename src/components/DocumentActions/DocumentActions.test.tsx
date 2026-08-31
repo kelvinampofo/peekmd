@@ -4,19 +4,11 @@ import { render } from "vitest-browser-react";
 import DocumentActions from "./DocumentActions";
 
 describe("DocumentActions", () => {
-  it("reports a clear request", async () => {
+  it("clears when clicked", async () => {
     const onClear = vi.fn();
     const screen = await render(<DocumentActions onClear={onClear} onFileSelect={vi.fn()} />);
 
-    const clearButton = screen
-      .getByRole("button", { name: "Clear", includeHidden: true })
-      .element();
-
-    if (!(clearButton instanceof HTMLButtonElement)) {
-      throw new TypeError("Expected Clear to be a button");
-    }
-
-    clearButton.click();
+    await screen.getByRole("button", { name: "Clear Preview" }).click();
 
     expect(onClear).toHaveBeenCalledOnce();
   });

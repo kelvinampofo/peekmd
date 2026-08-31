@@ -17,7 +17,8 @@ export default function DocumentActions({ ref, onClear, onFileSelect }: Document
         className="button button--secondary document-actions__clear"
         onClick={onClear}
       >
-        Clear
+        <span className="document-actions__clear-progress" aria-hidden="true" />
+        <span className="document-actions__clear-label">Clear Preview</span>
       </button>
       <FileInput ref={ref} onFileSelect={onFileSelect}>
         Open File
