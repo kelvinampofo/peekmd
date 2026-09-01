@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { useFileDrop } from "../../hooks/useFileDrop/useFileDrop";
-import { usePullToClear } from "../../hooks/usePullToClear/usePullToClear";
-import { useShortcuts } from "../../hooks/useShortcuts/useShortcuts";
-import DocumentActions from "../DocumentActions/DocumentActions";
-import EmptyState from "../EmptyState/EmptyState";
-import MarkdownPreview from "../MarkdownPreview/MarkdownPreview";
+import { useFileDrop } from "./hooks/useFileDrop/useFileDrop";
+import { usePullToClear } from "./hooks/usePullToClear/usePullToClear";
+import { useShortcuts } from "./hooks/useShortcuts/useShortcuts";
+import DocumentActions from "./components/DocumentActions/DocumentActions";
+import EmptyState from "./components/EmptyState/EmptyState";
+import MarkdownPreview from "./components/MarkdownPreview/MarkdownPreview";
 
-import "./DropTarget.css";
+import "./MarkdownPreviewer.css";
 
 type FileReadState =
   | { status: "idle" }
@@ -14,7 +14,7 @@ type FileReadState =
   | { status: "loaded"; source: string }
   | { status: "error"; message: string };
 
-export default function DropTarget() {
+export default function MarkdownPreviewer() {
   const [fileReadState, setFileReadState] = useState<FileReadState>({ status: "idle" });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,10 +29,10 @@ export default function DropTarget() {
 
   useShortcuts({
     C: clearPreview,
-    O: openFilePicker,
+    O: openFile,
   });
 
-  function openFilePicker() {
+  function openFile() {
     fileInputRef.current?.click();
   }
 

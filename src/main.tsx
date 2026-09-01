@@ -1,12 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import "./styles/system.css";
+import MarkdownPreviewer from "./features/markdown-preview/MarkdownPreviewer";
 
-import App from "./App.tsx";
+import "./styles/system.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    <MarkdownPreviewer />
   </StrictMode>,
 );
