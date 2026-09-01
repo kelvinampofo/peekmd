@@ -27,11 +27,7 @@ export default function EmptyState({ ref, message, onFileSelect, state }: EmptyS
   );
 }
 
-interface DocumentIconProps {
-  position: "left" | "center" | "right";
-}
-
-function DocumentIcon({ position }: DocumentIconProps) {
+function DocumentIcon({ position }: { position: "left" | "center" | "right" }) {
   return (
     <svg
       className="empty-state__document-icon"

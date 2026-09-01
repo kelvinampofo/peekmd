@@ -20,9 +20,9 @@ export default function MarkdownPreviewer() {
   const [fileReadState, setFileReadState] = useState<FileReadState>({ status: "idle" });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const latestReadId = useRef(0);
+  const fileReadVersion = useRef(0);
 
-  const { isFileDragActive, dropHandlers } = useFileDrop(handleFileOpen);
+  const { isDraggingOver, dropHandlers } = useFileDrop(handleFileOpen);
 
   const scrollRef = usePullToClear({
     enabled: fileReadState.status === "loaded",
@@ -39,19 +39,19 @@ export default function MarkdownPreviewer() {
   }
 
   function clearPreview() {
-    latestReadId.current += 1;
+    fileReadVersion.current += 1;
     if (scrollRef.current) scrollRef.current.scrollTop = 0;
     setFileReadState({ status: "idle" });
   }
 
-  async function readMarkdownFile(file: File | null) {
-    latestReadId.current += 1;
-    const currentReadId = latestReadId.current;
+  async function readMarkdownFile(file: File) {
+    fileReadVersion.current += 1;
+    const readVersion = fileReadVersion.current;
 
-    const fileName = file?.name.toLowerCase();
-    const isMarkdownFile = fileName?.endsWith(".md") || fileName?.endsWith(".markdown");
+    const fileName = file.name.toLowerCase();
+    const isMarkdownFile = fileName.endsWith(".md") || fileName.endsWith(".markdown");
 
-    if (!file || !isMarkdownFile) {
+    if (!isMarkdownFile) {
       setFileReadState({
         status: "error",
         message: "Drop a Markdown (.md or .markdown) file.",
@@ -64,11 +64,11 @@ export default function MarkdownPreviewer() {
     try {
       const source = await file.text();
 
-      if (currentReadId === latestReadId.current) {
+      if (readVersion === fileReadVersion.current) {
         setFileReadState({ status: "loaded", source });
       }
     } catch {
-      if (currentReadId === latestReadId.current) {
+      if (readVersion === fileReadVersion.current) {
         setFileReadState({
           status: "error",
           message: "This file could not be read. Please try another one.",
@@ -87,7 +87,7 @@ export default function MarkdownPreviewer() {
         ref={scrollRef}
         aria-label="Markdown preview"
         aria-busy={fileReadState.status === "reading"}
-        isDraggingOver={isFileDragActive}
+        isDraggingOver={isDraggingOver}
         isLoaded={fileReadState.status === "loaded"}
         {...dropHandlers}
       >
@@ -103,9 +103,9 @@ export default function MarkdownPreviewer() {
         ) : (
           <EmptyState
             ref={fileInputRef}
-            message={isFileDragActive ? "Drop to preview" : "Drop a Markdown file"}
+            message={isDraggingOver ? "Drop to preview" : "Drop a Markdown file"}
             onFileSelect={handleFileOpen}
-            state={isFileDragActive ? "dragover" : "idle"}
+            state={isDraggingOver ? "dragover" : "idle"}
           />
         )}
         {fileReadState.status === "error" ? (

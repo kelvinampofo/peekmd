@@ -1,21 +1,32 @@
 import { render } from "vitest-browser-react";
 
+import DropTarget from "../../components/DropTarget/DropTarget";
 import { useFileDrop } from "./useFileDrop";
 
-interface DropAreaProps {
+interface DropTargetHarnessProps {
   onFileDrop: (file: File) => void;
   onDragOver?: () => void;
   onDrop?: () => void;
 }
 
-function DropArea({ onFileDrop, onDragOver, onDrop }: DropAreaProps) {
-  const { isFileDragActive, dropHandlers } = useFileDrop(onFileDrop);
+type DragEventType = keyof Pick<
+  HTMLElementEventMap,
+  "dragenter" | "dragleave" | "dragover" | "drop"
+>;
+
+function DropTargetHarness({ onFileDrop, onDragOver, onDrop }: DropTargetHarnessProps) {
+  const { isDraggingOver, dropHandlers } = useFileDrop(onFileDrop);
 
   return (
     <div onDragOver={onDragOver} onDrop={onDrop}>
-      <section aria-label="Drop area" data-active={isFileDragActive} {...dropHandlers}>
+      <DropTarget
+        aria-label="Drop target"
+        isDraggingOver={isDraggingOver}
+        isLoaded={false}
+        {...dropHandlers}
+      >
         <span>Child</span>
-      </section>
+      </DropTarget>
     </div>
   );
 }
@@ -36,7 +47,7 @@ function textTransfer() {
 
 function dispatchDragEvent(
   target: Element,
-  type: string,
+  type: DragEventType,
   dataTransfer: DataTransfer,
   relatedTarget?: EventTarget,
 ) {
@@ -53,24 +64,24 @@ function dispatchDragEvent(
 describe("useFileDrop", () => {
   describe("drag state", () => {
     it("tracks a file drag until it leaves the target", async () => {
-      const screen = await render(<DropArea onFileDrop={vi.fn()} />);
+      const screen = await render(<DropTargetHarness onFileDrop={vi.fn()} />);
 
-      const dropArea = screen.getByRole("region", { name: "Drop area" });
-      const dropAreaElement = dropArea.element();
+      const dropTarget = screen.getByRole("region", { name: "Drop target" });
+      const dropTargetElement = dropTarget.element();
 
-      dispatchDragEvent(dropAreaElement, "dragenter", fileTransfer());
-      await expect.element(dropArea).toHaveAttribute("data-active", "true");
+      dispatchDragEvent(dropTargetElement, "dragenter", fileTransfer());
+      await expect.element(dropTarget).toHaveAttribute("data-dragging");
 
       dispatchDragEvent(
-        dropAreaElement,
+        dropTargetElement,
         "dragleave",
         fileTransfer(),
         screen.getByText("Child").element(),
       );
-      await expect.element(dropArea).toHaveAttribute("data-active", "true");
+      await expect.element(dropTarget).toHaveAttribute("data-dragging");
 
-      dispatchDragEvent(dropAreaElement, "dragleave", fileTransfer(), document.body);
-      await expect.element(dropArea).toHaveAttribute("data-active", "false");
+      dispatchDragEvent(dropTargetElement, "dragleave", fileTransfer(), document.body);
+      await expect.element(dropTarget).not.toHaveAttribute("data-dragging");
     });
   });
 
@@ -79,10 +90,10 @@ describe("useFileDrop", () => {
       const transfer = fileTransfer();
       const setDropEffect = vi.spyOn(DataTransfer.prototype, "dropEffect", "set");
 
-      const screen = await render(<DropArea onFileDrop={vi.fn()} />);
+      const screen = await render(<DropTargetHarness onFileDrop={vi.fn()} />);
 
       const accepted = dispatchDragEvent(
-        screen.getByRole("region", { name: "Drop area" }).element(),
+        screen.getByRole("region", { name: "Drop target" }).element(),
         "dragover",
         transfer,
       );
@@ -93,10 +104,13 @@ describe("useFileDrop", () => {
 
     it("stops file drags from bubbling", async () => {
       const onParentDragOver = vi.fn();
-      const screen = await render(<DropArea onFileDrop={vi.fn()} onDragOver={onParentDragOver} />);
+
+      const screen = await render(
+        <DropTargetHarness onFileDrop={vi.fn()} onDragOver={onParentDragOver} />,
+      );
 
       dispatchDragEvent(
-        screen.getByRole("region", { name: "Drop area" }).element(),
+        screen.getByRole("region", { name: "Drop target" }).element(),
         "dragover",
         fileTransfer(),
       );
@@ -111,18 +125,20 @@ describe("useFileDrop", () => {
       const onParentDrop = vi.fn();
       const transfer = fileTransfer();
 
-      const screen = await render(<DropArea onFileDrop={onFileDrop} onDrop={onParentDrop} />);
+      const screen = await render(
+        <DropTargetHarness onFileDrop={onFileDrop} onDrop={onParentDrop} />,
+      );
 
-      const dropArea = screen.getByRole("region", { name: "Drop area" });
-      const dropAreaElement = dropArea.element();
+      const dropTarget = screen.getByRole("region", { name: "Drop target" });
+      const dropTargetElement = dropTarget.element();
 
-      dispatchDragEvent(dropAreaElement, "dragenter", transfer);
+      dispatchDragEvent(dropTargetElement, "dragenter", transfer);
 
-      const accepted = dispatchDragEvent(dropAreaElement, "drop", transfer);
+      const accepted = dispatchDragEvent(dropTargetElement, "drop", transfer);
 
       expect(accepted).toBe(false);
 
-      await expect.element(dropArea).toHaveAttribute("data-active", "false");
+      await expect.element(dropTarget).not.toHaveAttribute("data-dragging");
 
       expect(onFileDrop).toHaveBeenCalledOnce();
       expect(onFileDrop).toHaveBeenCalledWith(transfer.files.item(0));
@@ -133,21 +149,26 @@ describe("useFileDrop", () => {
       const onFileDrop = vi.fn();
       const onParentDragOver = vi.fn();
       const onParentDrop = vi.fn();
+
       const transfer = textTransfer();
 
       const screen = await render(
-        <DropArea onFileDrop={onFileDrop} onDragOver={onParentDragOver} onDrop={onParentDrop} />,
+        <DropTargetHarness
+          onFileDrop={onFileDrop}
+          onDragOver={onParentDragOver}
+          onDrop={onParentDrop}
+        />,
       );
 
-      const dropArea = screen.getByRole("region", { name: "Drop area" });
-      const dropAreaElement = dropArea.element();
+      const dropTarget = screen.getByRole("region", { name: "Drop target" });
+      const dropTargetElement = dropTarget.element();
 
-      dispatchDragEvent(dropAreaElement, "dragenter", transfer);
+      dispatchDragEvent(dropTargetElement, "dragenter", transfer);
 
-      const dragOverAccepted = dispatchDragEvent(dropAreaElement, "dragover", transfer);
-      const dropAccepted = dispatchDragEvent(dropAreaElement, "drop", transfer);
+      const dragOverAccepted = dispatchDragEvent(dropTargetElement, "dragover", transfer);
+      const dropAccepted = dispatchDragEvent(dropTargetElement, "drop", transfer);
 
-      await expect.element(dropArea).toHaveAttribute("data-active", "false");
+      await expect.element(dropTarget).not.toHaveAttribute("data-dragging");
 
       expect(dragOverAccepted).toBe(true);
       expect(dropAccepted).toBe(true);
