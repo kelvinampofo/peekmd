@@ -2,8 +2,8 @@ import { userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { RenderResult } from "vitest-browser-react";
 
-import { startPull, touchEvent } from "../../test/touch";
-import DropTarget from "./DropTarget";
+import MarkdownPreviewer from "./MarkdownPreviewer";
+import { startPull, touchEvent } from "./test/touch";
 
 function markdownFile(name: string, contents: string) {
   return new File([contents], name, { type: "text/markdown" });
@@ -52,10 +52,10 @@ async function pullToClear(screen: RenderResult) {
   return scroller;
 }
 
-describe("DropTarget", () => {
+describe("MarkdownPreviewer", () => {
   describe("empty state", () => {
     it("does not scroll", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       expect(getComputedStyle(documentWindow(screen)).overflow).toBe("hidden");
     });
@@ -65,7 +65,7 @@ describe("DropTarget", () => {
     it.each(["notes.md", "notes.markdown", "NOTES.MD", "Notes.Markdown"])(
       "opens %s",
       async (name) => {
-        const screen = await render(<DropTarget />);
+        const screen = await render(<MarkdownPreviewer />);
 
         await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
 
@@ -76,7 +76,7 @@ describe("DropTarget", () => {
     );
 
     it("opens an empty document", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("empty.md", ""));
 
@@ -85,7 +85,7 @@ describe("DropTarget", () => {
     });
 
     it("previews a dropped file", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       dropFile(
         screen,
@@ -97,7 +97,7 @@ describe("DropTarget", () => {
     });
 
     it("replaces the current preview", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("first.md", "# First document"));
       await expect.element(screen.getByRole("heading", { name: "First document" })).toBeVisible();
@@ -113,7 +113,7 @@ describe("DropTarget", () => {
 
   describe("shortcuts", () => {
     it("'C' clears the preview", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
@@ -125,7 +125,7 @@ describe("DropTarget", () => {
     });
 
     it("'O' opens the file picker", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       const click = vi.spyOn(HTMLInputElement.prototype, "click");
@@ -138,7 +138,7 @@ describe("DropTarget", () => {
 
   describe("pulling past the end of a document", () => {
     it("returns to the top of the empty state after clearing the preview", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
@@ -158,7 +158,7 @@ describe("DropTarget", () => {
 
   describe("actions at the end of a document", () => {
     it("hides touch actions for a precise pointer", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
 
@@ -169,7 +169,7 @@ describe("DropTarget", () => {
 
   describe("file reading", () => {
     it("rejects unsupported files", async () => {
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       dropFile(screen, new File(["plain text"], "notes.txt"));
 
@@ -179,7 +179,7 @@ describe("DropTarget", () => {
 
     it("marks the preview busy while reading", async () => {
       vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("slow.md", ""));
 
@@ -190,7 +190,7 @@ describe("DropTarget", () => {
 
     it("shows an error when reading fails", async () => {
       vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("unreadable.md", ""));
 
@@ -200,7 +200,7 @@ describe("DropTarget", () => {
     it("ignores a read completed after clearing", async () => {
       const pendingRead = Promise.withResolvers<string>();
       vi.spyOn(File.prototype, "text").mockReturnValue(pendingRead.promise);
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("slow.md", ""));
       await expect
@@ -228,7 +228,7 @@ describe("DropTarget", () => {
       vi.spyOn(File.prototype, "text").mockImplementation(function (this: File) {
         return reads.get(this.name) ?? Promise.reject(new Error(`Unexpected file: ${this.name}`));
       });
-      const screen = await render(<DropTarget />);
+      const screen = await render(<MarkdownPreviewer />);
 
       await selectFile(screen, markdownFile("first.md", ""));
       await selectFile(screen, markdownFile("second.md", ""));
