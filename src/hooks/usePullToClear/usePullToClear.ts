@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 
-const CLEAR_THRESHOLD = 120;
+const CLEAR_THRESHOLD = 160;
 
 interface UsePullToClearOptions {
   enabled: boolean;
@@ -22,7 +22,16 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
       scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1;
 
     const reset = () => {
+      scroller.removeAttribute("data-clear-pulling");
       scroller.removeAttribute("data-clear-ready");
+      scroller.style.removeProperty("--clear-progress");
+    };
+
+    const updateProgress = (distance: number) => {
+      const progress = Math.min(Math.max(distance / CLEAR_THRESHOLD, 0), 1);
+
+      scroller.style.setProperty("--clear-progress", progress.toString());
+      scroller.toggleAttribute("data-clear-ready", progress === 1);
     };
 
     const trackPull = (startY: number, gesture: AbortController) => {
@@ -41,7 +50,7 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
           return;
         }
 
-        scroller.toggleAttribute("data-clear-ready", startY - touch.clientY >= CLEAR_THRESHOLD);
+        updateProgress(startY - touch.clientY);
       };
 
       const handleTouchEnd = (event: TouchEvent) => {
@@ -73,6 +82,8 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
       const gesture = new AbortController();
       const startY = touch.clientY;
 
+      scroller.setAttribute("data-clear-pulling", "");
+      updateProgress(0);
       trackPull(startY, gesture);
     };
 
