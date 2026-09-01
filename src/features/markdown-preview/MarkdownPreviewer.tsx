@@ -2,7 +2,9 @@ import { useRef, useState } from "react";
 import { useFileDrop } from "./hooks/useFileDrop/useFileDrop";
 import { usePullToClear } from "./hooks/usePullToClear/usePullToClear";
 import { useShortcuts } from "./hooks/useShortcuts/useShortcuts";
+
 import DocumentActions from "./components/DocumentActions/DocumentActions";
+import DropTarget from "./components/DropTarget/DropTarget";
 import EmptyState from "./components/EmptyState/EmptyState";
 import MarkdownPreview from "./components/MarkdownPreview/MarkdownPreview";
 
@@ -29,10 +31,10 @@ export default function MarkdownPreviewer() {
 
   useShortcuts({
     C: clearPreview,
-    O: openFile,
+    O: openFilePicker,
   });
 
-  function openFile() {
+  function openFilePicker() {
     fileInputRef.current?.click();
   }
 
@@ -81,13 +83,12 @@ export default function MarkdownPreviewer() {
 
   return (
     <main className="workspace">
-      <section
+      <DropTarget
         ref={scrollRef}
-        className="document-window"
         aria-label="Markdown preview"
         aria-busy={fileReadState.status === "reading"}
-        data-dragging={isFileDragActive || undefined}
-        data-loaded={fileReadState.status === "loaded" || undefined}
+        isDraggingOver={isFileDragActive}
+        isLoaded={fileReadState.status === "loaded"}
         {...dropHandlers}
       >
         {fileReadState.status === "loaded" ? (
@@ -112,7 +113,7 @@ export default function MarkdownPreviewer() {
             {fileReadState.message}
           </p>
         ) : null}
-      </section>
+      </DropTarget>
     </main>
   );
 }
