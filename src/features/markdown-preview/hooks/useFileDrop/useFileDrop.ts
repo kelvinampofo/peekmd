@@ -4,7 +4,7 @@ import type { DragEvent } from "react";
 type FileDropHandler = (file: File) => void;
 
 interface UseFileDropResult {
-  isFileDragActive: boolean;
+  isDraggingOver: boolean;
   dropHandlers: {
     onDragEnter: (event: DragEvent<HTMLElement>) => void;
     onDragLeave: (event: DragEvent<HTMLElement>) => void;
@@ -25,12 +25,12 @@ function isFileDrag(dataTransfer: DataTransfer) {
  * the target element.
  */
 export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
-  const [isFileDragActive, setIsFileDragActive] = useState(false);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const handleDragEnter = (event: DragEvent<HTMLElement>) => {
     if (!isFileDrag(event.dataTransfer)) return;
 
-    setIsFileDragActive(true);
+    setIsDraggingOver(true);
   };
 
   const handleDragOver = (event: DragEvent<HTMLElement>) => {
@@ -48,7 +48,7 @@ export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
       !(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget);
 
     if (hasLeftDropTarget) {
-      setIsFileDragActive(false);
+      setIsDraggingOver(false);
     }
   };
 
@@ -57,7 +57,7 @@ export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
 
     event.preventDefault();
     event.stopPropagation();
-    setIsFileDragActive(false);
+    setIsDraggingOver(false);
 
     const file = event.dataTransfer.files.item(0);
 
@@ -67,7 +67,7 @@ export function useFileDrop(onFileDrop: FileDropHandler): UseFileDropResult {
   };
 
   return {
-    isFileDragActive,
+    isDraggingOver,
     dropHandlers: {
       onDragEnter: handleDragEnter,
       onDragLeave: handleDragLeave,

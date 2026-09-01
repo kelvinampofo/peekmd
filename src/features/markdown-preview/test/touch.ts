@@ -1,7 +1,7 @@
 // Playwright WebKit cannot construct Touch entries, so emulate the touch lists read by the hook
 type TouchEventType = "touchstart" | "touchmove" | "touchend" | "touchcancel";
 
-export function touchEvent(type: TouchEventType, clientYs: number[]) {
+export function touchEvent(type: TouchEventType, clientYs: readonly number[]) {
   const event = new UIEvent(type, { bubbles: true });
   const touches = clientYs.map((clientY) => ({ clientY }));
 
