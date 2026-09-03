@@ -1,4 +1,6 @@
 import { useRef, useState } from "react";
+import { parseMarkdown } from "@tanstack/markdown";
+import type { MarkdownDocument } from "@tanstack/markdown";
 import { useFileDrop } from "./hooks/useFileDrop/useFileDrop";
 import { usePullToClear } from "./hooks/usePullToClear/usePullToClear";
 import { useShortcuts } from "./hooks/useShortcuts/useShortcuts";
@@ -6,17 +8,17 @@ import { useShortcuts } from "./hooks/useShortcuts/useShortcuts";
 import DocumentActions from "./components/DocumentActions/DocumentActions";
 import DropTarget from "./components/DropTarget/DropTarget";
 import EmptyState from "./components/EmptyState/EmptyState";
-import MarkdownPreview from "./components/MarkdownPreview/MarkdownPreview";
+import Article from "./components/Article/Article";
 
-import "./MarkdownPreviewer.css";
+import "./MarkdownPreview.css";
 
 type FileReadState =
   | { status: "idle" }
   | { status: "reading" }
-  | { status: "loaded"; source: string }
+  | { status: "loaded"; document: MarkdownDocument }
   | { status: "error"; message: string };
 
-export default function MarkdownPreviewer() {
+export default function MarkdownPreview() {
   const [fileReadState, setFileReadState] = useState<FileReadState>({ status: "idle" });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,8 +66,10 @@ export default function MarkdownPreviewer() {
     try {
       const source = await file.text();
 
+      const document = parseMarkdown(source);
+
       if (readVersion === fileReadVersion.current) {
-        setFileReadState({ status: "loaded", source });
+        setFileReadState({ status: "loaded", document });
       }
     } catch {
       if (readVersion === fileReadVersion.current) {
@@ -93,7 +97,7 @@ export default function MarkdownPreviewer() {
       >
         {fileReadState.status === "loaded" ? (
           <>
-            <MarkdownPreview source={fileReadState.source} />
+            <Article document={fileReadState.document} />
             <DocumentActions
               ref={fileInputRef}
               onClear={clearPreview}
