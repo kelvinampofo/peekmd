@@ -1,0 +1,97 @@
+@layer components {
+  .table-of-contents-panel {
+    position: sticky;
+    top: 0;
+    height: calc(100dvh - var(--space-48));
+    min-height: 0;
+  }
+
+  .table-of-contents-panel__content {
+    height: 100%;
+    display: grid;
+    grid-template-columns: var(--scrollbar-size) minmax(0, 1fr);
+    column-gap: var(--space-12);
+    align-content: start;
+    padding-block: var(--space-42);
+    padding-inline-end: var(--space-4);
+    overflow-y: auto;
+  }
+
+  .table-of-contents__scroll-map {
+    position: relative;
+    width: var(--scrollbar-size);
+    color: var(--scrollbar-thumb-color);
+    background: var(--scrollbar-track-color);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .table-of-contents__scroll-thumb {
+    position: absolute;
+    inset-inline: 0;
+    top: var(--table-of-contents-visible-start, 0);
+    height: var(--table-of-contents-visible-size, 100%);
+    background: currentColor;
+    transition:
+      top var(--duration-movement) var(--ease-out),
+      height var(--duration-movement) var(--ease-out);
+  }
+
+  .table-of-contents {
+    min-width: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .table-of-contents__list {
+    list-style: none;
+  }
+
+  .table-of-contents__item {
+    padding-inline-start: calc((var(--table-of-contents-level) - 1) * var(--space-12));
+  }
+
+  .table-of-contents__item + .table-of-contents__item {
+    margin-block-start: var(--space-4);
+  }
+
+  .table-of-contents__link {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    padding-block: var(--space-4);
+    color: var(--color-foreground-secondary);
+    font-weight: 500;
+    text-decoration-line: underline;
+    text-decoration-color: transparent;
+    overflow-wrap: anywhere;
+    transition: color var(--duration-hover);
+  }
+
+  .table-of-contents__link:hover {
+    color: var(--color-foreground);
+    text-decoration-color: currentColor;
+  }
+
+  .table-of-contents__link:focus-visible {
+    outline: 2px solid var(--color-ring, currentColor);
+    outline-offset: 2px;
+    border-radius: 0.125em;
+  }
+
+  .table-of-contents__link[data-active] {
+    color: var(--color-foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .table-of-contents__scroll-thumb {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .table-of-contents-panel {
+      display: none;
+    }
+  }
+}
