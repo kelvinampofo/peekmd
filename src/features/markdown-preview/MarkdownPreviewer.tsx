@@ -93,7 +93,7 @@ export default function MarkdownPreviewer() {
       >
         {fileReadState.status === "loaded" ? (
           <>
-            <MarkdownPreview source={fileReadState.source} />
+            <MarkdownPreview source={fileReadState.source} scrollContainerRef={scrollRef} />
             <DocumentActions
               ref={fileInputRef}
               onClear={clearPreview}

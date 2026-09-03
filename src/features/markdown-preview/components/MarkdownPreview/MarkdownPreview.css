@@ -1,9 +1,28 @@
 @layer components {
-  .markdown-preview {
+  .markdown-preview-layout {
     width: var(--content-width);
     min-width: 0;
-    padding-block: var(--space-42);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: var(--space-48);
     place-self: start center;
+    align-items: start;
+  }
+
+  @media not (max-width: 900px) {
+    .markdown-preview-layout:has(> aside) {
+      width: min(
+        calc(100% - var(--space-26)),
+        calc(var(--content-max-width) + 14rem + var(--space-48))
+      );
+      grid-template-columns: minmax(10rem, 14rem) minmax(0, var(--content-max-width));
+    }
+  }
+
+  .markdown-preview {
+    width: 100%;
+    min-width: 0;
+    padding-block: var(--space-42);
     line-height: 1.6;
     overflow-wrap: anywhere;
 
