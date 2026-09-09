@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
+import { useRef, type CSSProperties, type RefObject } from "react";
 
 import "./TableOfContents.css";
 
-export interface TableOfContentsItem {
-  id: string;
-  text: string;
-  level: 1 | 2 | 3 | 4 | 5 | 6;
-}
+import type { TableOfContentsItem } from "./TableOfContents.types";
+import { useMobileTableOfContents } from "./useMobileTableOfContents";
+import { useTableOfContentsTracking } from "./useTableOfContentsTracking";
+
+export type { TableOfContentsItem } from "./TableOfContents.types";
 
 interface TableOfContentsProps {
   items: readonly TableOfContentsItem[];
@@ -16,10 +16,13 @@ interface TableOfContentsProps {
 }
 
 type ItemStyle = CSSProperties & { "--table-of-contents-level": number };
-
-function setsMatch<T>(first: ReadonlySet<T>, second: ReadonlySet<T>) {
-  return first.size === second.size && [...first].every((value) => second.has(value));
-}
+type PanelStyle = CSSProperties & {
+  "--table-of-contents-blur": string;
+  "--table-of-contents-handle-offset": string;
+  "--table-of-contents-handle-travel-correction": string;
+  "--table-of-contents-open-progress": number;
+  "--table-of-contents-reveal": string;
+};
 
 export default function TableOfContents({
   items,
@@ -28,150 +31,100 @@ export default function TableOfContents({
   onNavigate,
 }: TableOfContentsProps) {
   const panelRef = useRef<HTMLElement>(null);
-  const [activeIds, setActiveIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [currentId, setCurrentId] = useState<string>();
-
-  useEffect(() => {
-    const contentRoot = contentRootRef.current;
-    const panel = panelRef.current;
-    const scrollRoot = scrollRootRef.current;
-
-    if (!contentRoot || !panel || !scrollRoot || items.length === 0) {
-      setActiveIds(new Set());
-      setCurrentId(undefined);
-      return;
-    }
-
-    const panelElement = panel;
-    const observedScrollRoot = scrollRoot;
-    const itemElements = new Map(
-      Array.from(panelElement.querySelectorAll<HTMLElement>(".table-of-contents__item")).flatMap(
-        (element) => {
-          const id = element.dataset.headingId;
-          return id ? [[id, element] as const] : [];
-        },
-      ),
-    );
-    const contentElements = new Map(
-      Array.from(contentRoot.querySelectorAll<HTMLElement>("[id]")).map(
-        (element) => [element.id, element] as const,
-      ),
-    );
-    const entries = items.flatMap((item) => {
-      const heading = contentElements.get(item.id);
-      const itemElement = itemElements.get(item.id);
-
-      return heading && itemElement ? [{ heading, id: item.id, itemElement }] : [];
-    });
-    const scrollMap = panelElement.querySelector<HTMLElement>(".table-of-contents__scroll-map");
-    const viewportTopInset =
-      Number.parseFloat(window.getComputedStyle(contentRoot).paddingTop) || 0;
-    let animationFrameId: number | undefined;
-
-    function updateActiveHeading() {
-      animationFrameId = undefined;
-      const scrollRootTop = observedScrollRoot.getBoundingClientRect().top;
-      const scrollPosition = observedScrollRoot.scrollTop;
-      const readingLine = scrollRootTop + viewportTopInset;
-      const viewportStart = scrollPosition + viewportTopInset;
-      const viewportEnd = scrollPosition + observedScrollRoot.clientHeight;
-      const headingPositions = entries.map(
-        ({ heading }) => heading.getBoundingClientRect().top - scrollRootTop + scrollPosition,
-      );
-      let firstVisibleIndex = -1;
-      let lastVisibleIndex = -1;
-      let nextCurrentId = entries[0]?.id;
-
-      for (const [index, { heading, id }] of entries.entries()) {
-        if (heading.getBoundingClientRect().top <= readingLine) nextCurrentId = id;
-
-        const sectionStart = headingPositions[index] ?? 0;
-        const sectionEnd = headingPositions[index + 1] ?? observedScrollRoot.scrollHeight;
-
-        if (sectionEnd > viewportStart && sectionStart < viewportEnd) {
-          if (firstVisibleIndex === -1) firstVisibleIndex = index;
-          lastVisibleIndex = index;
-        }
-      }
-
-      if (scrollMap && firstVisibleIndex !== -1 && lastVisibleIndex !== -1) {
-        const firstVisibleItem = entries[firstVisibleIndex]?.itemElement;
-        const lastVisibleItem = entries[lastVisibleIndex]?.itemElement;
-
-        if (firstVisibleItem && lastVisibleItem) {
-          const trackTop = scrollMap.getBoundingClientRect().top;
-          const firstItemTop = firstVisibleItem.getBoundingClientRect().top;
-          const lastItemBottom = lastVisibleItem.getBoundingClientRect().bottom;
-
-          panelElement.style.setProperty(
-            "--table-of-contents-visible-start",
-            `${firstItemTop - trackTop}px`,
-          );
-          panelElement.style.setProperty(
-            "--table-of-contents-visible-size",
-            `${lastItemBottom - firstItemTop}px`,
-          );
-        }
-      }
-
-      const nextActiveIds = new Set(
-        firstVisibleIndex === -1 || lastVisibleIndex === -1
-          ? []
-          : entries.slice(firstVisibleIndex, lastVisibleIndex + 1).map(({ id }) => id),
-      );
-      setActiveIds((currentActiveIds) =>
-        setsMatch(currentActiveIds, nextActiveIds) ? currentActiveIds : nextActiveIds,
-      );
-      setCurrentId((currentId) => (currentId === nextCurrentId ? currentId : nextCurrentId));
-    }
-
-    function scheduleUpdate() {
-      if (animationFrameId !== undefined) return;
-      animationFrameId = window.requestAnimationFrame(updateActiveHeading);
-    }
-
-    updateActiveHeading();
-    observedScrollRoot.addEventListener("scroll", scheduleUpdate, { passive: true });
-    window.addEventListener("resize", scheduleUpdate);
-
-    return () => {
-      observedScrollRoot.removeEventListener("scroll", scheduleUpdate);
-      window.removeEventListener("resize", scheduleUpdate);
-      if (animationFrameId !== undefined) window.cancelAnimationFrame(animationFrameId);
-    };
-  }, [contentRootRef, items, scrollRootRef]);
+  const { activeIds, currentId } = useTableOfContentsTracking({
+    contentRootRef,
+    items,
+    panelRef,
+    scrollRootRef,
+  });
+  const currentIndex = Math.max(
+    items.findIndex(({ id }) => id === currentId),
+    0,
+  );
+  const mobile = useMobileTableOfContents({
+    contentRootRef,
+    currentIndex,
+    items,
+    ...(onNavigate ? { onNavigate } : {}),
+  });
 
   if (items.length === 0) return null;
 
+  const handleShapeProgress = mobile.isOpen ? 0 : mobile.openProgress;
+  const handlePointX = 4 + handleShapeProgress * 10;
+  const revealProgress = mobile.isOpen ? 1 : 0;
+  const handleOffset = mobile.isOpen ? 32 : 4 + mobile.openProgress * 8;
+
   return (
-    <aside className="table-of-contents-panel" ref={panelRef}>
-      <div className="table-of-contents-panel__content">
-        <div className="table-of-contents__scroll-map" aria-hidden="true">
-          <span className="table-of-contents__scroll-thumb" />
-        </div>
-        <nav className="table-of-contents" aria-label="Table of contents">
-          <ol className="table-of-contents__list">
-            {items.map((item) => (
-              <li
-                className="table-of-contents__item"
-                data-heading-id={item.id}
-                data-level={item.level}
-                key={item.id}
-                style={{ "--table-of-contents-level": item.level } as ItemStyle}
-              >
-                <a
-                  className="table-of-contents__link"
-                  href={`#${item.id}`}
-                  aria-current={currentId === item.id ? "location" : undefined}
-                  data-active={activeIds.has(item.id) || undefined}
-                  onClick={() => onNavigate?.(item.id)}
+    <aside
+      className="table-of-contents-panel"
+      data-mobile-dragging={mobile.openProgress > 0 && !mobile.isOpen ? true : undefined}
+      data-mobile-open={mobile.isOpen || undefined}
+      ref={panelRef}
+      style={
+        {
+          "--table-of-contents-blur": `${mobile.openProgress * 18}px`,
+          "--table-of-contents-handle-offset": `${handleOffset}px`,
+          "--table-of-contents-handle-travel-correction": `${revealProgress * 44}px`,
+          "--table-of-contents-open-progress": mobile.openProgress,
+          "--table-of-contents-reveal": `${revealProgress * 100}%`,
+        } as PanelStyle
+      }
+    >
+      <button
+        aria-controls="table-of-contents-navigation"
+        aria-expanded={mobile.isOpen}
+        aria-label={mobile.isOpen ? "Close table of contents" : "Open table of contents"}
+        className="table-of-contents-handle"
+        data-touch-gesture-control=""
+        onClick={mobile.toggle}
+        type="button"
+      >
+        <svg aria-hidden="true" viewBox="0 0 28 40">
+          <path
+            className="table-of-contents-handle__stroke table-of-contents-handle__stroke--secondary"
+            d={`M 4 4 L ${handlePointX} 20 L 4 36`}
+          />
+        </svg>
+      </button>
+      <div className="table-of-contents-surface">
+        <div className="table-of-contents-panel__content">
+          <div className="table-of-contents__scroll-map" aria-hidden="true">
+            <span className="table-of-contents__scroll-thumb" />
+          </div>
+          <nav
+            className="table-of-contents"
+            id="table-of-contents-navigation"
+            aria-label="Table of contents"
+          >
+            <ol className="table-of-contents__list">
+              {items.map((item) => (
+                <li
+                  className="table-of-contents__item"
+                  data-heading-id={item.id}
+                  data-level={item.level}
+                  key={item.id}
+                  style={{ "--table-of-contents-level": item.level } as ItemStyle}
                 >
-                  {item.text}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
+                  <a
+                    className="table-of-contents__link"
+                    href={`#${item.id}`}
+                    aria-current={currentId === item.id ? "location" : undefined}
+                    data-active={
+                      activeIds.has(item.id) || mobile.scrubbedId === item.id || undefined
+                    }
+                    onClick={() => {
+                      onNavigate?.(item.id);
+                      mobile.close();
+                    }}
+                  >
+                    {item.text}
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </nav>
+        </div>
       </div>
     </aside>
   );

@@ -1,5 +1,10 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import {
+  isTouchGestureControl,
+  listenForClaimedTouchGesture,
+} from "../../interactions/touchGesture";
+
 const CLEAR_THRESHOLD = 160;
 
 interface UsePullToClearOptions {
@@ -17,6 +22,7 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
     if (!scroller || !enabled) return;
 
     const controller = new AbortController();
+    let activeGesture: AbortController | undefined;
 
     const isScrolledToEnd = () =>
       scroller.scrollTop >= scroller.scrollHeight - scroller.clientHeight - 1;
@@ -39,6 +45,7 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
 
       const stop = () => {
         gesture.abort();
+        if (activeGesture === gesture) activeGesture = undefined;
         reset();
       };
 
@@ -76,10 +83,19 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
       reset();
 
       const touch = event.touches[0];
+      const target = event.target;
 
-      if (event.touches.length !== 1 || !touch || !isScrolledToEnd()) return;
+      if (
+        event.touches.length !== 1 ||
+        !touch ||
+        !isScrolledToEnd() ||
+        isTouchGestureControl(target)
+      ) {
+        return;
+      }
 
       const gesture = new AbortController();
+      activeGesture = gesture;
       const startY = touch.clientY;
 
       scroller.setAttribute("data-clear-pulling", "");
@@ -91,6 +107,11 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
       passive: true,
       signal: controller.signal,
     });
+    listenForClaimedTouchGesture(() => {
+      activeGesture?.abort();
+      activeGesture = undefined;
+      reset();
+    }, controller.signal);
 
     return () => {
       controller.abort();

@@ -19,6 +19,13 @@
     }
   }
 
+  @media (max-width: 640px) {
+    .markdown-preview-layout {
+      width: 100%;
+      padding-inline: var(--space-16);
+    }
+  }
+
   .markdown-preview {
     width: 100%;
     min-width: 0;
@@ -278,7 +285,9 @@
       direction: ltr;
       border-radius: 0;
       padding: 0.75em 1em;
-      overflow-x: auto;
+      overflow-x: hidden;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
       margin-block-start: calc(var(--flow-space) / 0.875);
       margin-block-end: 0;
     }
@@ -288,6 +297,8 @@
       font-size: inherit;
       padding: 0;
       border-radius: 0;
+      overflow-wrap: inherit;
+      white-space: inherit;
     }
 
     /* blockquote */

@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import MarkdownPreview from "./MarkdownPreview";
@@ -14,6 +15,10 @@ function Preview({ source }: { source: string }) {
 }
 
 describe("MarkdownPreview", () => {
+  beforeEach(async () => {
+    await page.viewport(1280, 800);
+  });
+
   it("renders Markdown as an accessible document", async () => {
     const screen = await render(
       <Preview
@@ -56,7 +61,11 @@ describe("MarkdownPreview", () => {
     const links = outline.querySelectorAll<HTMLAnchorElement>("a");
 
     expect(links).toHaveLength(6);
-    expect(outline.querySelectorAll(".table-of-contents__scroll-thumb")).toHaveLength(1);
+    expect(
+      outline
+        .closest(".table-of-contents-panel")
+        ?.querySelectorAll(".table-of-contents__scroll-thumb"),
+    ).toHaveLength(1);
     links.forEach((link, index) => {
       const level = String(index + 1);
 
@@ -88,5 +97,17 @@ describe("MarkdownPreview", () => {
     await expect
       .element(screen.getByRole("navigation", { name: "Table of contents" }))
       .not.toBeInTheDocument();
+  });
+
+  it("wraps long fenced code instead of creating a horizontal scroller", async () => {
+    await page.viewport(390, 844);
+    await render(<Preview source={`\`\`\`ts\nconst value = "${"x".repeat(160)}";\n\`\`\``} />);
+
+    const codeBlock = document.querySelector<HTMLElement>("pre");
+
+    expect(codeBlock).not.toBeNull();
+    expect(getComputedStyle(codeBlock!).whiteSpace).toBe("pre-wrap");
+    expect(getComputedStyle(codeBlock!).overflowX).toBe("hidden");
+    expect(codeBlock!.scrollWidth).toBeLessThanOrEqual(codeBlock!.clientWidth);
   });
 });

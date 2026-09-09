@@ -18,7 +18,7 @@
 
   @media (max-width: 640px) {
     .workspace {
-      padding: var(--space-16);
+      padding: 0;
     }
   }
 }
