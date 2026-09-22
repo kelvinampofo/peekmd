@@ -84,9 +84,12 @@
       text-decoration-line: underline;
       text-decoration-color: color-mix(in oklab, currentColor 30%, transparent);
     }
-    &:where(a:hover) {
-      text-decoration-color: currentColor;
+    @media (hover: hover) and (pointer: fine) {
+      &:where(a:hover) {
+        text-decoration-color: currentColor;
+      }
     }
+
     &:where(a:focus-visible) {
       outline: 2px solid var(--color-ring, currentColor);
       outline-offset: 2px;
