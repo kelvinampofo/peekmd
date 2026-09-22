@@ -3,7 +3,10 @@
     height: 100dvh;
     display: grid;
     grid-template-rows: minmax(0, 1fr);
-    padding: var(--space-48);
+    padding: calc(var(--space-48) + env(safe-area-inset-top, 0px))
+      calc(var(--space-48) + env(safe-area-inset-right, 0px))
+      calc(var(--space-48) + env(safe-area-inset-bottom, 0px))
+      calc(var(--space-48) + env(safe-area-inset-left, 0px));
     background: var(--color-grey-2);
   }
 
@@ -18,7 +21,10 @@
 
   @media (max-width: 640px) {
     .workspace {
-      padding: var(--space-16);
+      padding: calc(var(--space-16) + env(safe-area-inset-top, 0px))
+        calc(var(--space-16) + env(safe-area-inset-right, 0px))
+        calc(var(--space-16) + env(safe-area-inset-bottom, 0px))
+        calc(var(--space-16) + env(safe-area-inset-left, 0px));
     }
   }
 }
