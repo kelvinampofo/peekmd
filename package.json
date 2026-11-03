@@ -30,7 +30,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/browser-playwright": "^5.0.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.75.0",
