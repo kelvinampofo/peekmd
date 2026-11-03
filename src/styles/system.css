@@ -130,7 +130,7 @@
     background: var(--color-background);
     color: var(--color-foreground);
 
-    @media (any-hover: hover) {
+    @media (hover: hover) and (pointer: fine) {
       &:hover {
         border-color: var(--color-grey-8);
         background: var(--color-grey-3);
@@ -148,7 +148,7 @@
     background: var(--color-primary);
     color: var(--color-background);
 
-    @media (any-hover: hover) {
+    @media (hover: hover) and (pointer: fine) {
       &:hover {
         border-color: var(--color-primary-hover);
         background: var(--color-primary-hover);
