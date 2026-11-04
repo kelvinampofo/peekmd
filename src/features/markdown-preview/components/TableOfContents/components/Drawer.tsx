@@ -1,4 +1,11 @@
-import type { ComponentPropsWithRef, CSSProperties, ReactNode, Ref, TransitionEvent } from "react";
+import {
+  useState,
+  type ComponentPropsWithRef,
+  type CSSProperties,
+  type ReactNode,
+  type Ref,
+  type TransitionEvent,
+} from "react";
 
 import { lerp } from "../../../../../utils/math";
 
@@ -29,6 +36,10 @@ export default function Drawer({
   onCloseComplete,
   children,
 }: DrawerProps) {
+  const [hasInteracted, setHasInteracted] = useState(false);
+
+  const dismissHint = () => setHasInteracted(true);
+
   const revealProgress = isOpen ? openProgress : 0;
   const handleShapeProgress = isOpen ? openProgress - 1 : openProgress;
   const chevronBend = lerp(0, 10 / 18, handleShapeProgress);
@@ -63,8 +74,11 @@ export default function Drawer({
         className="table-of-contents-handle"
         data-gesture-control=""
         {...handleProps}
+        onPointerDownCapture={dismissHint}
+        onClickCapture={dismissHint}
         type="button"
       >
+        {!hasInteracted && <span className="table-of-contents-gesture-hint" aria-hidden="true" />}
         <svg aria-hidden="true" viewBox="0 0 28 44">
           <path
             className="table-of-contents-handle__stroke table-of-contents-handle__stroke--upper"

@@ -97,6 +97,71 @@ describe("Drawer", () => {
     expect(handleRef.current).toBe(originalHandle);
   });
 
+  it("shows the gesture hint after five seconds", async () => {
+    const frameRef = createRef<HTMLDivElement>();
+    await render(
+      <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+        <Navigation />
+      </Drawer>,
+    );
+    const frame = requireElement(frameRef.current, HTMLDivElement);
+    const hint = requireElement(
+      frame.querySelector(".table-of-contents-gesture-hint"),
+      HTMLElement,
+    );
+
+    expect(getComputedStyle(hint).visibility).toBe("hidden");
+    const animations = hint.getAnimations();
+
+    for (const animation of animations) {
+      animation.pause();
+      animation.currentTime = 4999;
+    }
+
+    expect(getComputedStyle(hint).visibility).toBe("hidden");
+
+    for (const animation of animations) animation.currentTime = 5000;
+
+    expect(getComputedStyle(hint).visibility).toBe("visible");
+  });
+
+  it.each(["pointerdown", "click"])(
+    "dismisses the hint on %s and keeps it dismissed after closing",
+    async (type) => {
+      const frameRef = createRef<HTMLDivElement>();
+      const screen = await render(
+        <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+          <Navigation />
+        </Drawer>,
+      );
+      const frame = requireElement(frameRef.current, HTMLDivElement);
+      const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+
+      expect(frame.querySelector(".table-of-contents-gesture-hint")).not.toBeNull();
+      handle.dispatchEvent(
+        type === "pointerdown"
+          ? new PointerEvent(type, { bubbles: true })
+          : new MouseEvent(type, { bubbles: true }),
+      );
+      await vi.waitFor(() =>
+        expect(frame.querySelector(".table-of-contents-gesture-hint")).toBeNull(),
+      );
+
+      await screen.rerender(
+        <Drawer {...closedState} ref={frameRef} isOpen openProgress={1} handleProps={{}}>
+          <Navigation />
+        </Drawer>,
+      );
+      await screen.rerender(
+        <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+          <Navigation />
+        </Drawer>,
+      );
+
+      expect(frame.querySelector(".table-of-contents-gesture-hint")).toBeNull();
+    },
+  );
+
   it("keeps the list off-screen while the handle is dragged", async () => {
     const frameRef = createRef<HTMLDivElement>();
     const screen = await render(

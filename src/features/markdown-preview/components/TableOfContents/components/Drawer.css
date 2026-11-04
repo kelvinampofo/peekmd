@@ -87,6 +87,56 @@
       transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
     }
 
+    .table-of-contents-gesture-hint {
+      position: absolute;
+      inset-inline-start: calc(var(--table-of-contents-handle-offset) + 6px);
+      top: 50%;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--color-foreground);
+      opacity: 0.16;
+      translate: 0 -50%;
+      pointer-events: none;
+      visibility: hidden;
+      animation: table-of-contents-show-hint 0s linear 5s forwards;
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation:
+          table-of-contents-show-hint 0s linear 5s forwards,
+          table-of-contents-drag-hint 2.6s ease-in-out 5s infinite;
+      }
+    }
+
+    .table-of-contents-drawer:is([data-open], [data-dragging]) .table-of-contents-gesture-hint {
+      display: none;
+    }
+
+    @keyframes table-of-contents-show-hint {
+      to {
+        visibility: visible;
+      }
+    }
+
+    @keyframes table-of-contents-drag-hint {
+      0%,
+      46%,
+      100% {
+        transform: translateX(0) scale(1);
+        opacity: 0.16;
+      }
+
+      15% {
+        transform: translateX(0) scale(0.9);
+        opacity: 0.3;
+      }
+
+      31% {
+        transform: translateX(24px) scale(1);
+        opacity: 0.16;
+      }
+    }
+
     .table-of-contents-handle::before {
       content: "";
       position: absolute;
