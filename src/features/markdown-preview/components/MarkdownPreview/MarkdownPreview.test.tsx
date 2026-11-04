@@ -2,6 +2,7 @@ import { useRef } from "react";
 import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
+import { requireElement } from "../../test/dom";
 import MarkdownPreview from "./MarkdownPreview";
 
 function Preview({ source }: { source: string }) {
@@ -58,7 +59,7 @@ describe("MarkdownPreview", () => {
     );
 
     const outline = screen.getByRole("navigation", { name: "Table of contents" }).element();
-    const links = outline.querySelectorAll<HTMLAnchorElement>("a");
+    const links = outline.querySelectorAll("a");
 
     expect(links).toHaveLength(6);
     expect(
@@ -69,18 +70,18 @@ describe("MarkdownPreview", () => {
     links.forEach((link, index) => {
       const level = String(index + 1);
 
-      expect(link.getAttribute("href")).toBe(`#${link.textContent?.toLowerCase()}`);
+      const target = `#${link.textContent.toLowerCase()}`;
+
+      expect(link.getAttribute("href")).toBe(target);
       expect(link.closest("li")?.dataset.level).toBe(level);
-      expect(document.querySelector(link.getAttribute("href")!)).not.toBeNull();
+      expect(document.querySelector(target)).not.toBeNull();
     });
   });
 
   it("uses rendered text and duplicate-safe IDs for formatted headings", async () => {
     await render(<Preview source={"# **Release** `notes`!\n\n# **Release** `notes`!"} />);
 
-    const links = document.querySelectorAll<HTMLAnchorElement>(
-      '.table-of-contents__link[href^="#release-notes"]',
-    );
+    const links = document.querySelectorAll('.table-of-contents__link[href^="#release-notes"]');
 
     expect(links).toHaveLength(2);
     expect(links[0]?.textContent).toBe("Release notes!");
@@ -103,11 +104,10 @@ describe("MarkdownPreview", () => {
     await page.viewport(390, 844);
     await render(<Preview source={`\`\`\`ts\nconst value = "${"x".repeat(160)}";\n\`\`\``} />);
 
-    const codeBlock = document.querySelector<HTMLElement>("pre");
+    const codeBlock = requireElement(document.querySelector("pre"), HTMLPreElement);
 
-    expect(codeBlock).not.toBeNull();
-    expect(getComputedStyle(codeBlock!).whiteSpace).toBe("pre-wrap");
-    expect(getComputedStyle(codeBlock!).overflowX).toBe("hidden");
-    expect(codeBlock!.scrollWidth).toBeLessThanOrEqual(codeBlock!.clientWidth);
+    expect(getComputedStyle(codeBlock).whiteSpace).toBe("pre-wrap");
+    expect(getComputedStyle(codeBlock).overflowX).toBe("hidden");
+    expect(codeBlock.scrollWidth).toBeLessThanOrEqual(codeBlock.clientWidth);
   });
 });

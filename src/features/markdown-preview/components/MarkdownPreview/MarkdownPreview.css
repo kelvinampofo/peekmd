@@ -24,6 +24,11 @@
       width: 100%;
       padding-inline: var(--space-16);
     }
+
+    .markdown-preview-layout:has(> .table-of-contents-drawer) {
+      padding-inline-start: calc(env(safe-area-inset-left) + var(--space-42));
+      padding-inline-end: calc(env(safe-area-inset-right) + var(--space-24));
+    }
   }
 
   .markdown-preview {

@@ -59,6 +59,7 @@
     --space-16: 16px;
     --space-24: 24px;
     --space-26: 26px;
+    --space-28: 28px;
     --space-32: 32px;
     --space-42: 42px;
     --space-48: 48px;
@@ -108,7 +109,6 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
     transition:
       background-color var(--duration-hover),
       border-color var(--duration-hover),
@@ -169,6 +169,7 @@
 @layer base {
   :root {
     color-scheme: light dark;
+    -webkit-tap-highlight-color: transparent;
   }
 
   * {

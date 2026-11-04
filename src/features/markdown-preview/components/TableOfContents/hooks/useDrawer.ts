@@ -56,7 +56,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
       (element) => element.id === heading.id,
     );
 
-    target?.scrollIntoView({ behavior: "auto", block: "start" });
+    target?.scrollIntoView({ behavior: "instant", block: "start" });
     setDrawer({ phase: "open", selectedId: heading.id });
   };
 

@@ -1,10 +1,11 @@
 @layer components {
   .workspace {
+    --workspace-padding: var(--space-28);
+
     height: 100dvh;
     display: grid;
     grid-template-rows: minmax(0, 1fr);
-    padding: var(--space-48);
-    background: var(--color-grey-2);
+    padding: var(--workspace-padding);
   }
 
   .document-window__status {
@@ -18,7 +19,7 @@
 
   @media (max-width: 640px) {
     .workspace {
-      padding: 0;
+      --workspace-padding: 0px;
     }
   }
 }
