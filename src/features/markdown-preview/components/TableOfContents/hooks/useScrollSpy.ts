@@ -1,6 +1,10 @@
 import { useEffect, useState, type RefObject } from "react";
 
 import type { Heading } from "../types/heading";
+import { isSameReadingPosition, type ReadingPosition } from "../scrolling/readingPosition";
+import { keepItemVisible, updateScrollIndicator } from "../scrolling/navigation";
+import { collectSections } from "../scrolling/sections";
+import { observeSections } from "../scrolling/observeSections";
 
 interface ScrollSpyOptions {
   contentRootRef: RefObject<HTMLElement | null>;
@@ -9,9 +13,7 @@ interface ScrollSpyOptions {
   scrollRootRef: RefObject<HTMLElement | null>;
 }
 
-function setsMatch<T>(first: ReadonlySet<T>, second: ReadonlySet<T>) {
-  return first.size === second.size && [...first].every((value) => second.has(value));
-}
+const initialPosition: ReadingPosition = { currentId: undefined, visibleIds: [] };
 
 export function useScrollSpy({
   contentRootRef,
@@ -19,118 +21,61 @@ export function useScrollSpy({
   drawerRef,
   scrollRootRef,
 }: ScrollSpyOptions) {
-  const [visibleIds, setActiveIds] = useState<ReadonlySet<string>>(() => new Set());
-  const [currentId, setCurrentId] = useState<string>();
+  const [position, setPosition] = useState(initialPosition);
 
   useEffect(() => {
-    const contentRoot = contentRootRef.current;
-    const panel = drawerRef.current;
-    const scrollRoot = scrollRootRef.current;
+    const content = contentRootRef.current;
+    const drawer = drawerRef.current;
+    const scrollContainer = scrollRootRef.current;
 
-    if (!contentRoot || !panel || !scrollRoot || headings.length === 0) {
-      setActiveIds(new Set());
-      setCurrentId(undefined);
+    if (!content || !drawer || !scrollContainer || headings.length === 0) {
+      setPosition(initialPosition);
       return;
     }
 
-    const panelElement = panel;
-    const observedScrollRoot = scrollRoot;
+    const sections = collectSections(content, drawer, headings);
+    const navigationItems = new Map(sections.map(({ id, navigationItem }) => [id, navigationItem]));
+    const navigationScroller = drawer.querySelector(".table-of-contents-drawer__content");
+    const scrollTrack = drawer.querySelector(".table-of-contents__scroll-map");
 
-    const itemElements = new Map(
-      Array.from(panelElement.querySelectorAll<HTMLElement>(".table-of-contents__item")).flatMap(
-        (element) => {
-          const id = element.dataset.headingId;
-          return id ? [[id, element] as const] : [];
-        },
-      ),
-    );
-    const contentElements = new Map(
-      Array.from(contentRoot.querySelectorAll<HTMLElement>("[id]")).map(
-        (element) => [element.id, element] as const,
-      ),
-    );
-    const entries = headings.flatMap((item) => {
-      const heading = contentElements.get(item.id);
-      const itemElement = itemElements.get(item.id);
-      return heading && itemElement ? [{ heading, id: item.id, itemElement }] : [];
+    const itemFor = (id: string | undefined) =>
+      id === undefined ? undefined : navigationItems.get(id);
+
+    const syncNavigation = (next: ReadingPosition) => {
+      const currentItem = itemFor(next.currentId);
+      const firstItem = itemFor(next.visibleIds[0]);
+      const lastItem = itemFor(next.visibleIds.at(-1));
+
+      if (navigationScroller && currentItem) keepItemVisible(navigationScroller, currentItem);
+
+      if (scrollTrack && firstItem && lastItem) {
+        updateScrollIndicator(drawer, scrollTrack, firstItem, lastItem);
+      }
+    };
+
+    const observation = observeSections({
+      content,
+      scrollContainer,
+      sections,
+      onChange(next) {
+        syncNavigation(next);
+        setPosition((previous) => (isSameReadingPosition(previous, next) ? previous : next));
+      },
     });
-    const scrollMap = panelElement.querySelector<HTMLElement>(".table-of-contents__scroll-map");
-    const viewportTopInset =
-      Number.parseFloat(window.getComputedStyle(contentRoot).paddingTop) || 0;
-    let animationFrameId: number | undefined;
 
-    function updateActiveHeading() {
-      animationFrameId = undefined;
-      const scrollRootTop = observedScrollRoot.getBoundingClientRect().top;
-      const scrollPosition = observedScrollRoot.scrollTop;
-      const readingLine = scrollRootTop + viewportTopInset;
-      const viewportStart = scrollPosition + viewportTopInset;
-      const viewportEnd = scrollPosition + observedScrollRoot.clientHeight;
-      const headingPositions = entries.map(
-        ({ heading }) => heading.getBoundingClientRect().top - scrollRootTop + scrollPosition,
-      );
-      let firstVisibleIndex = -1;
-      let lastVisibleIndex = -1;
-      let nextCurrentId = entries[0]?.id;
+    const followReadingPosition = () => syncNavigation(observation.getPosition());
+    const controller = new AbortController();
 
-      for (const [index, { heading, id }] of entries.entries()) {
-        if (heading.getBoundingClientRect().top <= readingLine) nextCurrentId = id;
-
-        const sectionStart = headingPositions[index] ?? 0;
-        const sectionEnd = headingPositions[index + 1] ?? observedScrollRoot.scrollHeight;
-
-        if (sectionEnd > viewportStart && sectionStart < viewportEnd) {
-          if (firstVisibleIndex === -1) firstVisibleIndex = index;
-          lastVisibleIndex = index;
-        }
-      }
-
-      if (scrollMap && firstVisibleIndex !== -1 && lastVisibleIndex !== -1) {
-        const firstVisibleItem = entries[firstVisibleIndex]?.itemElement;
-        const lastVisibleItem = entries[lastVisibleIndex]?.itemElement;
-
-        if (firstVisibleItem && lastVisibleItem) {
-          const trackTop = scrollMap.getBoundingClientRect().top;
-          const firstItemTop = firstVisibleItem.getBoundingClientRect().top;
-          const lastItemBottom = lastVisibleItem.getBoundingClientRect().bottom;
-
-          panelElement.style.setProperty(
-            "--table-of-contents-visible-start",
-            `${firstItemTop - trackTop}px`,
-          );
-          panelElement.style.setProperty(
-            "--table-of-contents-visible-size",
-            `${lastItemBottom - firstItemTop}px`,
-          );
-        }
-      }
-
-      const nextActiveIds = new Set(
-        firstVisibleIndex === -1 || lastVisibleIndex === -1
-          ? []
-          : entries.slice(firstVisibleIndex, lastVisibleIndex + 1).map(({ id }) => id),
-      );
-      setActiveIds((visibleIds) =>
-        setsMatch(visibleIds, nextActiveIds) ? visibleIds : nextActiveIds,
-      );
-      setCurrentId((currentId) => (currentId === nextCurrentId ? currentId : nextCurrentId));
-    }
-
-    function scheduleUpdate() {
-      if (animationFrameId !== undefined) return;
-      animationFrameId = window.requestAnimationFrame(updateActiveHeading);
-    }
-
-    updateActiveHeading();
-    observedScrollRoot.addEventListener("scroll", scheduleUpdate, { passive: true });
-    window.addEventListener("resize", scheduleUpdate);
+    scrollContainer.addEventListener("scroll", followReadingPosition, {
+      passive: true,
+      signal: controller.signal,
+    });
 
     return () => {
-      observedScrollRoot.removeEventListener("scroll", scheduleUpdate);
-      window.removeEventListener("resize", scheduleUpdate);
-      if (animationFrameId !== undefined) window.cancelAnimationFrame(animationFrameId);
+      controller.abort();
+      observation.disconnect();
     };
   }, [contentRootRef, headings, drawerRef, scrollRootRef]);
 
-  return { visibleIds, currentId };
+  return { currentId: position.currentId, visibleIds: new Set(position.visibleIds) };
 }
