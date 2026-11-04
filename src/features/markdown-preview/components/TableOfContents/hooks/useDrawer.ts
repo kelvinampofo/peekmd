@@ -9,20 +9,25 @@ import {
 } from "react";
 
 import type { Heading } from "../types/heading";
-import { moveGesture, releaseGesture, type GestureState } from "../gestures/drawer";
+import {
+  moveGesture,
+  releaseGesture,
+  type GestureSource,
+  type GestureState,
+} from "../gestures/drawer";
 import { useDismissal } from "./useDismissal";
 
 type DrawerState =
   | { phase: "closed" }
   | { phase: "opening"; progress: number }
   | { phase: "closing"; progress: number }
-  | { phase: "open"; selectedId: string | undefined };
+  | { phase: "open"; selectedId: Heading["id"] | undefined };
 
 interface DrawerOptions {
   contentRootRef: RefObject<HTMLElement | null>;
   currentIndex: number;
   headings: readonly Heading[];
-  onNavigate?: (id: string) => void;
+  onNavigate?: (id: Heading["id"]) => void;
 }
 
 export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }: DrawerOptions) {
@@ -52,15 +57,13 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
 
     if (!heading || !contentRoot) return;
 
-    const target = Array.from(contentRoot.querySelectorAll("[id]")).find(
-      (element) => element.id === heading.id,
-    );
+    const target = contentRoot.querySelector(`#${CSS.escape(heading.id)}`);
 
     target?.scrollIntoView({ behavior: "instant", block: "start" });
     setDrawer({ phase: "open", selectedId: heading.id });
   };
 
-  const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+  const startGesture = (event: PointerEvent<HTMLElement>, source: GestureSource) => {
     if (
       !event.isPrimary ||
       event.button !== 0 ||
@@ -75,12 +78,13 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
       pointerId: event.pointerId,
       origin: { x: event.clientX, y: event.clientY },
       startedOpen: isOpen,
+      source,
     };
 
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (source === "handle") event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
     const previous = gestureRef.current;
 
     if (!("pointerId" in previous) || previous.pointerId !== event.pointerId) return;
@@ -96,6 +100,17 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
     );
 
     gestureRef.current = gesture;
+
+    if (
+      gesture.phase === "scrubbing" ||
+      gesture.phase === "revealing" ||
+      gesture.phase === "closing"
+    ) {
+      event.preventDefault();
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    }
 
     if (gesture.phase === "revealing" || gesture.phase === "closing") {
       setDrawer({
@@ -116,7 +131,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
     }
   };
 
-  const finishGesture = (event: PointerEvent<HTMLButtonElement>, cancelled: boolean) => {
+  const finishGesture = (event: PointerEvent<HTMLElement>, cancelled: boolean) => {
     const gesture = gestureRef.current;
 
     if (!("pointerId" in gesture) || gesture.pointerId !== event.pointerId) return;
@@ -124,12 +139,14 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
     gestureRef.current = { phase: "idle" };
 
     const result = releaseGesture(gesture, cancelled);
+    const isHandleTouch =
+      event.currentTarget === handleRef.current && event.pointerType === "touch";
 
     switch (result.action) {
       case "none":
         break;
       case "toggle":
-        if (event.pointerType === "touch") toggle();
+        if (isHandleTouch) toggle();
         break;
       case "open":
         setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
@@ -148,7 +165,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
         result satisfies never;
     }
 
-    if (cancelled || gesture.phase !== "pressed" || event.pointerType === "touch") {
+    if (cancelled || gesture.phase !== "pressed" || isHandleTouch) {
       gestureRef.current = { phase: "released" };
     }
 
@@ -157,13 +174,19 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
     }
   };
 
-  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+  const suppressDragClick = (event: MouseEvent<HTMLElement>) => {
     if (event.detail !== 0 && gestureRef.current.phase === "released") {
       gestureRef.current = { phase: "idle" };
       event.preventDefault();
       event.stopPropagation();
-      return;
+      return true;
     }
+
+    return false;
+  };
+
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (suppressDragClick(event)) return;
 
     gestureRef.current = { phase: "idle" };
     toggle();
@@ -197,20 +220,33 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
 
   useDismissal({ isOpen, handleRef, onDismiss: close });
 
+  const pointerProps = {
+    onPointerMove: handlePointerMove,
+    onPointerUp: (event: PointerEvent<HTMLElement>) => finishGesture(event, false),
+    onPointerCancel: (event: PointerEvent<HTMLElement>) => finishGesture(event, true),
+    onLostPointerCapture: (event: PointerEvent<HTMLElement>) => {
+      if (event.target === event.currentTarget) finishGesture(event, true);
+    },
+  };
+
   return {
     close,
     isOpen,
     isDragging,
     openProgress,
     scrubbedId,
+    navigationProps: {
+      onPointerDown: (event: PointerEvent<HTMLElement>) => {
+        if (isOpen) startGesture(event, "list");
+      },
+      ...pointerProps,
+      onClickCapture: suppressDragClick,
+    },
     handleProps: {
       ref: handleRef,
       onClick: handleClick,
-      onPointerDown: handlePointerDown,
-      onPointerMove: handlePointerMove,
-      onPointerUp: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, false),
-      onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, true),
-      onLostPointerCapture: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, true),
+      onPointerDown: (event: PointerEvent<HTMLElement>) => startGesture(event, "handle"),
+      ...pointerProps,
     },
   };
 }

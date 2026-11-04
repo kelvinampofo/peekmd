@@ -7,6 +7,7 @@ const closedPress: GestureState = {
   pointerId: 1,
   origin: { x: 100, y: 200 },
   startedOpen: false,
+  source: "handle",
 };
 
 const scrub: GestureState = {
@@ -105,6 +106,14 @@ describe("TOC gestures", () => {
     expect(closing).toMatchObject({ phase: "closing", progress: 0.5 });
     expect(releaseGesture(closing, false)).toEqual({ action: "close" });
     expect(releaseGesture(closing, true)).toEqual({ action: "open" });
+  });
+
+  it("rejects horizontal closing from the heading list", () => {
+    const press: GestureState = { ...closedPress, startedOpen: true, source: "list" };
+    const next = moveGesture(press, { x: -50, y: 200 }, context);
+
+    expect(next.phase).toBe("rejected");
+    expect(releaseGesture(next, false)).toEqual({ action: "none" });
   });
 
   it("restores an open drawer when a closing drag is reversed", () => {

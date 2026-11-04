@@ -14,6 +14,8 @@ interface ActivePointer {
   pointerId: number;
 }
 
+export type GestureSource = "handle" | "list";
+
 export type GestureState =
   | { phase: "idle" }
   | { phase: "released" }
@@ -21,6 +23,7 @@ export type GestureState =
       phase: "pressed";
       origin: Position;
       startedOpen: boolean;
+      source: GestureSource;
     })
   | (ActivePointer & { phase: "rejected" })
   | (ActivePointer & { phase: "revealing" | "closing"; originX: number; progress: number })
@@ -71,7 +74,11 @@ function recogniseDrag(
     };
   }
 
-  if (!isHorizontal || (gesture.startedOpen ? horizontalDistance > 0 : horizontalDistance < 0)) {
+  if (
+    gesture.source === "list" ||
+    !isHorizontal ||
+    (gesture.startedOpen ? horizontalDistance > 0 : horizontalDistance < 0)
+  ) {
     return { phase: "rejected", pointerId: gesture.pointerId };
   }
 

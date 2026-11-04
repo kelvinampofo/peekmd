@@ -214,6 +214,40 @@ describe("TableOfContents drawer", () => {
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
   });
 
+  it("scrubs down and up from a fresh press on an open handle", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
+    const handle = await openPanel(screen);
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+    const second = screen.getByRole("heading", { name: "Section 2", exact: true }).element();
+    const first = screen.getByRole("heading", { name: "Section 1", exact: true }).element();
+
+    dragFrom(handle, [
+      [360, 400],
+      [360, 464],
+    ]);
+    await vi.waitFor(() =>
+      expect(second.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+
+    handle.dispatchEvent(gesturePointerEvent("pointermove", 360, 432));
+    await vi.waitFor(() =>
+      expect(first.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    handle.dispatchEvent(gesturePointerEvent("pointerup", 360, 432));
+
+    expect(onNavigate).toHaveBeenCalledWith("section-1");
+    await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("abandons a scrub without navigating when pointer capture is lost", async () => {
     const onNavigate = vi.fn();
     const screen = await render(<Fixture onNavigate={onNavigate} />);
@@ -345,21 +379,50 @@ describe("TableOfContents drawer", () => {
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("leaves heading-list scrolling to the browser", async () => {
-    const screen = await render(<Fixture />);
+  it("scrubs from the heading list and suppresses the click after release", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
     await openPanel(screen);
-    const link = screen.getByRole("link", { name: "Details" }).element();
-    const scroll = gestureTouchEvent("touchmove", 180, 300);
+    const navigation = screen.getByRole("navigation", { name: "Table of contents" }).element();
+    const link = screen.getByRole("link", { name: "Section 1", exact: true }).element();
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+    const second = screen.getByRole("heading", { name: "Section 2", exact: true }).element();
+    const first = screen.getByRole("heading", { name: "Section 1", exact: true }).element();
 
-    link.dispatchEvent(gestureTouchEvent("touchstart", 180, 400));
-    link.dispatchEvent(scroll);
-    link.dispatchEvent(gestureTouchEvent("touchend", 180, 300));
+    dragFrom(link, [
+      [180, 300],
+      [180, 364],
+    ]);
+    await vi.waitFor(() =>
+      expect(second.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    link.dispatchEvent(gesturePointerEvent("lostpointercapture", 180, 364));
+    navigation.dispatchEvent(gesturePointerEvent("pointermove", 180, 332));
+    await vi.waitFor(() =>
+      expect(first.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(getComputedStyle(navigation).touchAction).toBe("pinch-zoom");
+    const style = getComputedStyle(navigation);
+    expect(
+      style.getPropertyValue("user-select") || style.getPropertyValue("-webkit-user-select"),
+    ).toBe("none");
 
-    expect(scroll.defaultPrevented).toBe(false);
-    expect(getComputedStyle(link).touchAction).toBe("auto");
+    navigation.dispatchEvent(gesturePointerEvent("pointerup", 180, 332));
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+    link.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith("section-1");
     await expect
-      .element(screen.getByRole("button", { name: "Close table of contents" }))
-      .toHaveAttribute("aria-expanded", "true");
+      .element(screen.getByRole("button", { name: "Open table of contents" }))
+      .toHaveAttribute("aria-expanded", "false");
   });
 
   it("closes on a leftward handle swipe without navigating or reopening on click", async () => {

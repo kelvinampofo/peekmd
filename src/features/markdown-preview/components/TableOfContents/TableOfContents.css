@@ -79,6 +79,9 @@
 
     .table-of-contents {
       width: min(100%, 24rem);
+      touch-action: pinch-zoom;
+      -webkit-user-select: none;
+      user-select: none;
     }
   }
 }

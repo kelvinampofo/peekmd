@@ -62,6 +62,8 @@ export default function TableOfContents({
         className="table-of-contents"
         id="table-of-contents-navigation"
         aria-label="Table of contents"
+        data-gesture-control={drawer.isOpen ? "" : undefined}
+        {...drawer.navigationProps}
       >
         <ol className="table-of-contents__list">
           {headings.map((heading) => {
@@ -84,6 +86,7 @@ export default function TableOfContents({
                   data-active={
                     visibleIds.has(heading.id) || drawer.scrubbedId === heading.id || undefined
                   }
+                  draggable={drawer.isOpen ? false : undefined}
                   onClick={() => {
                     onNavigate?.(heading.id);
                     drawer.close();
