@@ -40,7 +40,7 @@ export default function MarkdownPreviewer() {
 
   function clearPreview() {
     fileReadVersion.current += 1;
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
     setFileReadState({ status: "idle" });
   }
 
