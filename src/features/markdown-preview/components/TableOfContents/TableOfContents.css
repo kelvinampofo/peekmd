@@ -44,16 +44,14 @@
     padding-block: var(--space-4);
     color: var(--color-foreground-secondary);
     font-weight: 500;
-    text-decoration-line: underline;
-    text-decoration-color: transparent;
+    text-decoration: none;
     overflow-wrap: anywhere;
     transition: color var(--duration-hover);
   }
 
-  @media (any-hover: hover) {
+  @media (hover: hover) and (pointer: fine) {
     .table-of-contents__link:hover {
       color: var(--color-foreground);
-      text-decoration-color: currentColor;
     }
   }
 

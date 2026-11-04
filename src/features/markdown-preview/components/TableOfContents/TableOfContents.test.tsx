@@ -328,6 +328,24 @@ function dragFrom(element: Element, [start, ...moves]: readonly [Point, ...Point
   }
 }
 
+function backgroundAlpha(element: HTMLElement) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const context = canvas.getContext("2d");
+
+  if (!context) throw new Error("Canvas context unavailable");
+
+  context.fillStyle = getComputedStyle(element).backgroundColor;
+  context.fillRect(0, 0, 1, 1);
+
+  const alpha = context.getImageData(0, 0, 1, 1).data[3];
+
+  if (alpha === undefined) throw new Error("Canvas pixel has no alpha channel");
+
+  return alpha;
+}
+
 async function settle(element: Element) {
   await new Promise(requestAnimationFrame);
   await Promise.all(element.getAnimations({ subtree: true }).map(({ finished }) => finished));
@@ -377,6 +395,73 @@ describe("TableOfContents drawer", () => {
       .element(screen.getByRole("button", { name: "Open table of contents" }))
       .toHaveAttribute("aria-expanded", "false");
   });
+
+  it("makes the background more opaque while the drawer returns off-screen", async () => {
+    const screen = await render(<Fixture />);
+    const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const surface = requireElement(drawer.querySelector(".table-of-contents-surface"), HTMLElement);
+    const content = requireElement(
+      drawer.querySelector(".table-of-contents-drawer__content"),
+      HTMLElement,
+    );
+
+    await screen.getByRole("button", { name: "Open table of contents" }).click();
+    await vi.waitFor(() => expect(surface.getBoundingClientRect().left).toBeCloseTo(0));
+    const openAlpha = backgroundAlpha(surface);
+    expect(openAlpha).toBeGreaterThan(0);
+    expect(openAlpha).toBeLessThan(255);
+    expect(getComputedStyle(surface).backdropFilter).toContain("blur");
+    await screen.getByRole("button", { name: "Close table of contents" }).click();
+
+    await vi.waitFor(() => expect(surface.getAnimations().length).toBeGreaterThan(0));
+    const animations = drawer.getAnimations({ subtree: true });
+
+    for (const animation of animations) {
+      animation.pause();
+      animation.currentTime = 150;
+    }
+
+    expect(getComputedStyle(content).visibility).toBe("visible");
+    expect(surface.getBoundingClientRect().left).toBeGreaterThan(-390);
+    expect(surface.getBoundingClientRect().left).toBeLessThan(0);
+    expect(getComputedStyle(surface).opacity).toBe("1");
+    expect(backgroundAlpha(surface)).toBeGreaterThan(openAlpha);
+    expect(getComputedStyle(surface).backdropFilter).toContain("blur");
+
+    for (const animation of animations) animation.finish();
+
+    await vi.waitFor(() => expect(getComputedStyle(content).visibility).toBe("hidden"));
+    expect(backgroundAlpha(surface)).toBe(255);
+    await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it.each(["pointerup", "pointercancel"] as const)(
+    "abandons an incomplete opening on %s and accepts a new gesture",
+    async (eventType) => {
+      const onNavigate = vi.fn();
+      const screen = await render(<Fixture onNavigate={onNavigate} />);
+      const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+
+      dragFrom(handle, [
+        [12, 400],
+        [72, 400],
+      ]);
+      handle.dispatchEvent(gesturePointerEvent(eventType, 72, 400));
+
+      await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+      expect(onNavigate).not.toHaveBeenCalled();
+
+      dragFrom(handle, [
+        [12, 400],
+        [132, 400],
+      ]);
+      handle.dispatchEvent(gesturePointerEvent("pointerup", 132, 400));
+
+      await expect.element(handle).toHaveAttribute("aria-expanded", "true");
+      expect(onNavigate).not.toHaveBeenCalled();
+    },
+  );
 
   it("continues a handle drag into heading scrubbing and navigates on release", async () => {
     const onNavigate = vi.fn();
