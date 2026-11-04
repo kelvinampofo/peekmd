@@ -1,4 +1,4 @@
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { RenderResult } from "vitest-browser-react";
 
@@ -153,6 +153,38 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
       await expect.element(screen.getByRole("heading", { name: "Notes" })).not.toBeInTheDocument();
       await expect.element(screen.getByText("Drop a Markdown file")).toBeVisible();
       expect(scroller.scrollTop).toBe(0);
+    });
+  });
+
+  describe("table of contents at the end of a document", () => {
+    it("keeps the preview when a drag starts on the handle", async () => {
+      await page.viewport(390, 844);
+      const screen = await render(<MarkdownPreviewer />);
+      const sections = Array.from(
+        { length: 12 },
+        (_section, index) => `## Section ${index}\n\n${"Paragraph text. ".repeat(40)}`,
+      );
+
+      await selectFile(screen, markdownFile("long.md", sections.join("\n\n")));
+      const scroller = documentWindow(screen);
+
+      // wait until a pull from the document itself would start, so the handle case is meaningful
+      await vi.waitFor(() => {
+        scroller.scrollTo({ top: scroller.scrollHeight, behavior: "instant" });
+        scroller.dispatchEvent(touchEvent("touchstart", [600]));
+
+        expect(scroller.hasAttribute("data-clear-pulling")).toBe(true);
+      });
+
+      scroller.dispatchEvent(touchEvent("touchcancel", [600]));
+
+      const endPosition = scroller.scrollTop;
+      const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+      handle.dispatchEvent(touchEvent("touchstart", [600]));
+      handle.dispatchEvent(touchEvent("touchmove", [340]));
+      handle.dispatchEvent(touchEvent("touchend", [340]));
+
+      expect(scroller.scrollTop, "clearing scrolls the document to the top").toBe(endPosition);
     });
   });
 

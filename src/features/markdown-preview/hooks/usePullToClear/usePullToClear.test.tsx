@@ -1,6 +1,5 @@
 import { render } from "vitest-browser-react";
 
-import { claimTouchGesture } from "../../interactions/touchGesture";
 import { startPull, touchEvent } from "../../test/touch";
 import { usePullToClear } from "./usePullToClear";
 
@@ -14,7 +13,7 @@ function Scroller({ enabled = true, onClear }: ScrollerProps) {
 
   return (
     <section ref={scrollRef} aria-label="scroller" style={{ height: "200px", overflow: "auto" }}>
-      <button data-touch-gesture-control="" type="button">
+      <button data-gesture-control="" type="button">
         Contents
       </button>
       <div style={{ height: "600px" }} />
@@ -91,25 +90,13 @@ describe("usePullToClear", () => {
 
   it("ignores gestures that start on the table of contents handle", async () => {
     const { onClear, scroller, scrollerLocator } = await renderScroller();
-    const handle = scroller.querySelector("[data-touch-gesture-control]");
+    const handle = scroller.querySelector("[data-gesture-control]");
     const grabY = scroller.getBoundingClientRect().bottom / 2;
 
     scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight;
     handle?.dispatchEvent(touchEvent("touchstart", [grabY]));
     scroller.dispatchEvent(touchEvent("touchmove", [grabY - 300]));
     scroller.dispatchEvent(touchEvent("touchend", [grabY - 300]));
-
-    expect(onClear).not.toHaveBeenCalled();
-    await expect.element(scrollerLocator).not.toHaveAttribute("data-clear-pulling");
-  });
-
-  it("abandons a pull when another interaction claims the gesture", async () => {
-    const { onClear, scroller, scrollerLocator } = await renderScroller();
-
-    const endY = startPull(scroller, 80);
-    claimTouchGesture();
-    scroller.dispatchEvent(touchEvent("touchmove", [endY - 220]));
-    scroller.dispatchEvent(touchEvent("touchend", [endY - 220]));
 
     expect(onClear).not.toHaveBeenCalled();
     await expect.element(scrollerLocator).not.toHaveAttribute("data-clear-pulling");

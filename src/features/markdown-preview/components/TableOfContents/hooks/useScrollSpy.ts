@@ -1,11 +1,11 @@
 import { useEffect, useState, type RefObject } from "react";
 
-import type { TableOfContentsItem } from "./TableOfContents.types";
+import type { Heading } from "../types/heading";
 
-interface UseTableOfContentsTrackingOptions {
+interface ScrollSpyOptions {
   contentRootRef: RefObject<HTMLElement | null>;
-  items: readonly TableOfContentsItem[];
-  panelRef: RefObject<HTMLElement | null>;
+  headings: readonly Heading[];
+  drawerRef: RefObject<HTMLElement | null>;
   scrollRootRef: RefObject<HTMLElement | null>;
 }
 
@@ -13,21 +13,21 @@ function setsMatch<T>(first: ReadonlySet<T>, second: ReadonlySet<T>) {
   return first.size === second.size && [...first].every((value) => second.has(value));
 }
 
-export function useTableOfContentsTracking({
+export function useScrollSpy({
   contentRootRef,
-  items,
-  panelRef,
+  headings,
+  drawerRef,
   scrollRootRef,
-}: UseTableOfContentsTrackingOptions) {
-  const [activeIds, setActiveIds] = useState<ReadonlySet<string>>(() => new Set());
+}: ScrollSpyOptions) {
+  const [visibleIds, setActiveIds] = useState<ReadonlySet<string>>(() => new Set());
   const [currentId, setCurrentId] = useState<string>();
 
   useEffect(() => {
     const contentRoot = contentRootRef.current;
-    const panel = panelRef.current;
+    const panel = drawerRef.current;
     const scrollRoot = scrollRootRef.current;
 
-    if (!contentRoot || !panel || !scrollRoot || items.length === 0) {
+    if (!contentRoot || !panel || !scrollRoot || headings.length === 0) {
       setActiveIds(new Set());
       setCurrentId(undefined);
       return;
@@ -49,7 +49,7 @@ export function useTableOfContentsTracking({
         (element) => [element.id, element] as const,
       ),
     );
-    const entries = items.flatMap((item) => {
+    const entries = headings.flatMap((item) => {
       const heading = contentElements.get(item.id);
       const itemElement = itemElements.get(item.id);
       return heading && itemElement ? [{ heading, id: item.id, itemElement }] : [];
@@ -110,8 +110,8 @@ export function useTableOfContentsTracking({
           ? []
           : entries.slice(firstVisibleIndex, lastVisibleIndex + 1).map(({ id }) => id),
       );
-      setActiveIds((activeIds) =>
-        setsMatch(activeIds, nextActiveIds) ? activeIds : nextActiveIds,
+      setActiveIds((visibleIds) =>
+        setsMatch(visibleIds, nextActiveIds) ? visibleIds : nextActiveIds,
       );
       setCurrentId((currentId) => (currentId === nextCurrentId ? currentId : nextCurrentId));
     }
@@ -130,7 +130,7 @@ export function useTableOfContentsTracking({
       window.removeEventListener("resize", scheduleUpdate);
       if (animationFrameId !== undefined) window.cancelAnimationFrame(animationFrameId);
     };
-  }, [contentRootRef, items, panelRef, scrollRootRef]);
+  }, [contentRootRef, headings, drawerRef, scrollRootRef]);
 
-  return { activeIds, currentId };
+  return { visibleIds, currentId };
 }
