@@ -55,19 +55,13 @@
       position: absolute;
       z-index: 1;
       inset: 0;
-      background: color-mix(
-        in oklab,
-        var(--color-background) calc(100% - var(--table-of-contents-reveal) * 50%),
-        transparent
-      );
-      backdrop-filter: blur(18px) saturate(0.85);
-      -webkit-backdrop-filter: blur(18px) saturate(0.85);
+      background: color-mix(in oklab, var(--color-background) 75%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
       padding-block: max(var(--space-48), env(safe-area-inset-top))
         max(var(--space-32), env(safe-area-inset-bottom));
       translate: calc((var(--table-of-contents-reveal) - 1) * 100%) 0;
-      transition:
-        translate var(--table-of-contents-duration) var(--table-of-contents-easing),
-        background-color var(--table-of-contents-duration) var(--table-of-contents-easing);
+      transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
     }
 
     .table-of-contents-handle {
@@ -82,8 +76,8 @@
       cursor: ew-resize;
       pointer-events: auto;
       touch-action: none;
-      user-select: none;
       -webkit-user-select: none;
+      user-select: none;
       translate: clamp(
           env(safe-area-inset-left),
           calc(var(--table-of-contents-reveal) * 100vw - 44px - env(safe-area-inset-right)),
@@ -102,7 +96,7 @@
 
     .table-of-contents-handle svg {
       width: 28px;
-      height: 40px;
+      height: 44px;
       overflow: visible;
       translate: var(--table-of-contents-handle-offset) 0;
       transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
@@ -121,7 +115,7 @@
     }
 
     .table-of-contents-handle__stroke--lower {
-      transform-origin: 4px 36px;
+      transform-origin: 4px 40px;
       transform: matrix(1, 0, calc(-1 * var(--table-of-contents-chevron-bend)), 1, 0, 0);
     }
 

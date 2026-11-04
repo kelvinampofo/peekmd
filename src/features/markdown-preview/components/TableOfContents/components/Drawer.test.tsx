@@ -7,7 +7,12 @@ import "../../../../../styles/system.css";
 import { requireElement } from "../../../test/dom";
 import Drawer from "./Drawer";
 
-const closedState = { isOpen: false, isDragging: false, openProgress: 0 };
+const closedState = {
+  isOpen: false,
+  isDragging: false,
+  openProgress: 0,
+  onCloseComplete: () => {},
+};
 
 function Navigation() {
   return (
@@ -33,6 +38,7 @@ describe("Drawer", () => {
         isDragging={false}
         openProgress={1}
         handleProps={{ ref: handleRef }}
+        onCloseComplete={() => {}}
       >
         <Navigation />
       </Drawer>,
@@ -66,6 +72,7 @@ describe("Drawer", () => {
         isDragging={false}
         openProgress={1}
         handleProps={{ ref: handleRef }}
+        onCloseComplete={() => {}}
       >
         <Navigation />
       </Drawer>,
@@ -93,7 +100,7 @@ describe("Drawer", () => {
   it("keeps the list off-screen while the handle is dragged", async () => {
     const frameRef = createRef<HTMLDivElement>();
     const screen = await render(
-      <Drawer ref={frameRef} isOpen={false} isDragging openProgress={0.5} handleProps={{}}>
+      <Drawer {...closedState} ref={frameRef} isDragging openProgress={0.5} handleProps={{}}>
         <Navigation />
       </Drawer>,
     );

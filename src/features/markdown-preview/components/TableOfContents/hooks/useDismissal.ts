@@ -13,6 +13,7 @@ export function useDismissal({ isOpen, handleRef, onDismiss }: DismissalOptions)
     if (!isOpen) return;
 
     const handleOutsideClick = (event: MouseEvent) => {
+      if (event.defaultPrevented) return;
       if (event.target instanceof Node && handleRef.current?.contains(event.target)) return;
 
       dismiss();
