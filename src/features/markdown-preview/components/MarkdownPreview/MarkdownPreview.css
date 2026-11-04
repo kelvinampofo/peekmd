@@ -10,7 +10,7 @@
   }
 
   @media not (max-width: 900px) {
-    .markdown-preview-layout:has(> aside) {
+    .markdown-preview-layout:has(> .table-of-contents-drawer) {
       width: min(
         calc(100% - var(--space-26)),
         calc(var(--content-max-width) + 14rem + var(--space-48))

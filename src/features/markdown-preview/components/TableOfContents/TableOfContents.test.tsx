@@ -2,26 +2,27 @@ import { useRef } from "react";
 import { page, server, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
-import TableOfContents, { type TableOfContentsItem } from "./TableOfContents";
+import TableOfContents from "./TableOfContents";
+import type { Heading } from "./types/heading";
 
-const items: readonly TableOfContentsItem[] = [
+const headings: readonly Heading[] = [
   { id: "introduction", text: "Introduction", level: 1 },
   { id: "details", text: "Details", level: 2 },
 ];
 
 interface FixtureProps {
-  items?: readonly TableOfContentsItem[];
+  headings?: readonly Heading[];
   onNavigate?: (id: string) => void;
 }
 
-function Fixture({ items: fixtureItems = items, onNavigate }: FixtureProps) {
+function Fixture({ headings: fixtureItems = headings, onNavigate }: FixtureProps) {
   const contentRootRef = useRef<HTMLElement>(null);
   const scrollRootRef = useRef<HTMLElement>(null);
 
   return (
     <section ref={scrollRootRef} aria-label="TOC scroller">
       <TableOfContents
-        items={fixtureItems}
+        headings={fixtureItems}
         contentRootRef={contentRootRef}
         scrollRootRef={scrollRootRef}
         {...(onNavigate ? { onNavigate } : {})}
@@ -98,8 +99,8 @@ describe("TableOfContents", () => {
     await expect.element(screen.getByText("Contents")).not.toBeInTheDocument();
   });
 
-  it("renders nothing when there are no items", async () => {
-    const screen = await render(<Fixture items={[]} />);
+  it("renders nothing when there are no headings", async () => {
+    const screen = await render(<Fixture headings={[]} />);
 
     await expect
       .element(screen.getByRole("navigation", { name: "Table of contents" }))
@@ -165,7 +166,7 @@ describe("TableOfContents", () => {
     const panel = screen
       .getByRole("navigation", { name: "Table of contents" })
       .element()
-      .closest<HTMLElement>(".table-of-contents-panel");
+      .closest<HTMLElement>(".table-of-contents-drawer");
 
     expect(panel?.style.getPropertyValue("--table-of-contents-visible-size")).toBe("40px");
     expect(panel?.style.getPropertyValue("--table-of-contents-visible-start")).toBe("44px");
@@ -192,7 +193,7 @@ describe("TableOfContents", () => {
       const panel = screen
         .getByRole("navigation", { name: "Table of contents" })
         .element()
-        .closest<HTMLElement>(".table-of-contents-panel");
+        .closest<HTMLElement>(".table-of-contents-drawer");
 
       expect(panel?.getBoundingClientRect().width).toBe(390);
       expect(panel?.getBoundingClientRect().height).toBeCloseTo(844, 1);
@@ -219,17 +220,17 @@ describe("TableOfContents", () => {
         expect(handle.querySelector("path")?.getAttribute("d")).toBe("M 4 4 L 9 20 L 4 36");
         expect(
           handle
-            .closest<HTMLElement>(".table-of-contents-panel")
+            .closest<HTMLElement>(".table-of-contents-drawer")
             ?.style.getPropertyValue("--table-of-contents-open-progress"),
         ).toBe("0.5");
         expect(
           handle
-            .closest<HTMLElement>(".table-of-contents-panel")
+            .closest<HTMLElement>(".table-of-contents-drawer")
             ?.style.getPropertyValue("--table-of-contents-handle-offset"),
         ).toBe("8px");
         expect(
           handle
-            .closest<HTMLElement>(".table-of-contents-panel")
+            .closest<HTMLElement>(".table-of-contents-drawer")
             ?.style.getPropertyValue("--table-of-contents-reveal"),
         ).toBe("0%");
       });
@@ -279,7 +280,7 @@ describe("TableOfContents", () => {
       expect(handle.querySelector("path")?.getAttribute("d")).toBe("M 4 4 L 4 20 L 4 36");
       expect(
         handle
-          .closest<HTMLElement>(".table-of-contents-panel")
+          .closest<HTMLElement>(".table-of-contents-drawer")
           ?.style.getPropertyValue("--table-of-contents-handle-offset"),
       ).toBe("32px");
     });

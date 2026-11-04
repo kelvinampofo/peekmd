@@ -2,7 +2,8 @@ import { collectMarkdownHeadings } from "@tanstack/markdown/extensions/headings"
 import { parseMarkdown } from "@tanstack/markdown/parser";
 import { Markdown } from "@tanstack/markdown/react";
 import { useMemo, useRef, type RefObject } from "react";
-import TableOfContents, { type TableOfContentsItem } from "../TableOfContents/TableOfContents";
+import TableOfContents from "../TableOfContents/TableOfContents";
+import type { Heading } from "../TableOfContents/types/heading";
 
 import "./MarkdownPreview.css";
 
@@ -11,8 +12,8 @@ interface MarkdownPreviewProps {
   scrollContainerRef: RefObject<HTMLElement | null>;
 }
 
-function isHeadingLevel(level: number): level is TableOfContentsItem["level"] {
-  return level >= 1 && level <= 6;
+function isHeadingLevel(level: number): level is Heading["level"] {
+  return Number.isInteger(level) && level >= 1 && level <= 6;
 }
 
 export default function MarkdownPreview({ source, scrollContainerRef }: MarkdownPreviewProps) {
@@ -31,7 +32,7 @@ export default function MarkdownPreview({ source, scrollContainerRef }: Markdown
   return (
     <div className="markdown-preview-layout">
       <TableOfContents
-        items={headings}
+        headings={headings}
         contentRootRef={articleRef}
         scrollRootRef={scrollContainerRef}
       />

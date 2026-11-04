@@ -63,7 +63,7 @@ describe("MarkdownPreview", () => {
     expect(links).toHaveLength(6);
     expect(
       outline
-        .closest(".table-of-contents-panel")
+        .closest(".table-of-contents-drawer")
         ?.querySelectorAll(".table-of-contents__scroll-thumb"),
     ).toHaveLength(1);
     links.forEach((link, index) => {

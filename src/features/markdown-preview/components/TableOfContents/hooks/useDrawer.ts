@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
 
-import { claimTouchGesture } from "../../interactions/touchGesture";
-import type { TableOfContentsItem } from "./TableOfContents.types";
+import { claimTouchGesture } from "../../../interactions/touchGesture";
+import type { Heading } from "../types/heading";
 
 const OPEN_DISTANCE = 88;
 const SCRUB_STEP = 32;
@@ -18,19 +18,14 @@ interface MobileGesture {
   startedOnHeading: boolean;
 }
 
-interface UseMobileTableOfContentsOptions {
+interface DrawerOptions {
   contentRootRef: RefObject<HTMLElement | null>;
   currentIndex: number;
-  items: readonly TableOfContentsItem[];
+  headings: readonly Heading[];
   onNavigate?: (id: string) => void;
 }
 
-export function useMobileTableOfContents({
-  contentRootRef,
-  currentIndex,
-  items,
-  onNavigate,
-}: UseMobileTableOfContentsOptions) {
+export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }: DrawerOptions) {
   const gestureRef = useRef<MobileGesture | undefined>(undefined);
   const suppressNextClickRef = useRef(false);
   const suppressionTimeoutRef = useRef<number | undefined>(undefined);
@@ -38,7 +33,7 @@ export function useMobileTableOfContents({
   const [openProgress, setOpenProgress] = useState(0);
   const [scrubbedId, setScrubbedId] = useState<string>();
 
-  const getState = useEffectEvent(() => ({ currentIndex, isOpen, items }));
+  const getState = useEffectEvent(() => ({ currentIndex, isOpen, headings }));
   const reportNavigation = useEffectEvent((id: string) => onNavigate?.(id));
 
   const close = useCallback(() => {
@@ -48,7 +43,7 @@ export function useMobileTableOfContents({
   }, []);
 
   const scrollToItem = useEffectEvent((index: number) => {
-    const item = items[index];
+    const item = headings[index];
     const contentRoot = contentRootRef.current;
 
     if (!item || !contentRoot) return;
@@ -69,7 +64,7 @@ export function useMobileTableOfContents({
 
     setIsOpen(true);
     setOpenProgress(1);
-    setScrubbedId(items[currentIndex]?.id);
+    setScrubbedId(headings[currentIndex]?.id);
   };
 
   useEffect(() => {
@@ -97,7 +92,7 @@ export function useMobileTableOfContents({
         startedOnHeading: isHeadingTarget(event.target),
       };
 
-      if (state.isOpen) setScrubbedId(state.items[state.currentIndex]?.id);
+      if (state.isOpen) setScrubbedId(state.headings[state.currentIndex]?.id);
     };
 
     const handleTouchMove = (event: TouchEvent) => {
@@ -145,7 +140,7 @@ export function useMobileTableOfContents({
           gesture.baseIndex = state.currentIndex;
           gesture.selectedIndex = state.currentIndex;
           setIsOpen(true);
-          setScrubbedId(state.items[state.currentIndex]?.id);
+          setScrubbedId(state.headings[state.currentIndex]?.id);
         }
 
         return;
@@ -156,7 +151,7 @@ export function useMobileTableOfContents({
       const indexDelta = Math.trunc((touch.clientY - gesture.scrubOriginY) / SCRUB_STEP);
       const nextIndex = Math.min(
         Math.max(gesture.baseIndex + indexDelta, 0),
-        state.items.length - 1,
+        state.headings.length - 1,
       );
 
       if (nextIndex === gesture.selectedIndex) return;
@@ -202,7 +197,7 @@ export function useMobileTableOfContents({
       }
 
       if (gesture.hasScrubbed) {
-        const item = getState().items[gesture.selectedIndex];
+        const item = getState().headings[gesture.selectedIndex];
         if (item) reportNavigation(item.id);
         close();
       }
@@ -249,5 +244,12 @@ export function useMobileTableOfContents({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [close, isOpen]);
 
-  return { close, isOpen, openProgress, scrubbedId, toggle };
+  return {
+    close,
+    isOpen,
+    isDragging: openProgress > 0 && !isOpen,
+    openProgress,
+    scrubbedId,
+    handleProps: { onClick: toggle },
+  };
 }
