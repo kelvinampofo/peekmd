@@ -26,12 +26,12 @@
     }
 
     .markdown-preview-layout:has(> .table-of-contents-drawer) {
-      padding-inline-start: calc(env(safe-area-inset-left) + var(--space-42));
-      padding-inline-end: calc(env(safe-area-inset-right) + var(--space-24));
+      padding-inline-start: var(--space-42);
+      padding-inline-end: var(--space-24);
     }
   }
 
-  .markdown-preview {
+  .markdown-document {
     width: 100%;
     min-width: 0;
     padding-block: var(--space-42);
@@ -43,7 +43,7 @@
     --rule-color: color-mix(in oklab, currentColor 20%, transparent);
   }
 
-  .markdown-preview * {
+  .markdown-document * {
     /* paragraphs */
     &:where(p) {
       margin-block-start: var(--flow-space);
@@ -437,9 +437,9 @@
   }
 
   /* first child adds no space above, last so it wins ties */
-  .markdown-preview > :where(:first-child),
-  .markdown-preview > :where(:first-child) > :where(:first-child),
-  .markdown-preview
+  .markdown-document > :where(:first-child),
+  .markdown-document > :where(:first-child) > :where(:first-child),
+  .markdown-document
     :where(
       li > :first-child,
       blockquote > :first-child,

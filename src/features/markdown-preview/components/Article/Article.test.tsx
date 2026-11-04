@@ -3,19 +3,20 @@ import { page } from "vitest/browser";
 import { render } from "vitest-browser-react";
 
 import { requireElement } from "../../test/dom";
-import MarkdownPreview from "./MarkdownPreview";
+import { parseMarkdown } from "@tanstack/markdown";
+import Article from "./Article";
 
 function Preview({ source }: { source: string }) {
   const scrollContainerRef = useRef<HTMLElement>(null);
 
   return (
     <section ref={scrollContainerRef} aria-label="Preview scroller">
-      <MarkdownPreview source={source} scrollContainerRef={scrollContainerRef} />
+      <Article document={parseMarkdown(source)} scrollContainerRef={scrollContainerRef} />
     </section>
   );
 }
 
-describe("MarkdownPreview", () => {
+describe("Article", () => {
   beforeEach(async () => {
     await page.viewport(1280, 800);
   });
@@ -109,5 +110,38 @@ describe("MarkdownPreview", () => {
     expect(getComputedStyle(codeBlock).whiteSpace).toBe("pre-wrap");
     expect(getComputedStyle(codeBlock).overflowX).toBe("hidden");
     expect(codeBlock.scrollWidth).toBeLessThanOrEqual(codeBlock.clientWidth);
+  });
+  it("renders Markdown as an accessible document", async () => {
+    const document = parseMarkdown(
+      [
+        "# Think Different",
+        "",
+        "> Here’s to the **crazy ones**.",
+        "",
+        "— [Apple](https://www.apple.com/)",
+      ].join("\n"),
+    );
+
+    const scrollContainerRef = { current: null };
+    const screen = await render(
+      <Article document={document} scrollContainerRef={scrollContainerRef} />,
+    );
+
+    const article = screen.getByRole("article");
+
+    await expect.element(article).toBeVisible();
+    await expect.element(article).toMatchAriaInlineSnapshot(`
+      - article:
+        - heading "Think Different" [level=1]
+        - blockquote:
+          - paragraph:
+            - text: Here’s to the
+            - strong: crazy ones
+            - text: .
+        - paragraph:
+          - text: —
+          - link "Apple":
+            - /url: https://www.apple.com/
+    `);
   });
 });

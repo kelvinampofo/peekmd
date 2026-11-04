@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import "./styles/system.css";
 
-import MarkdownPreviewer from "./features/markdown-preview/MarkdownPreviewer";
+import MarkdownPreview from "./features/markdown-preview/MarkdownPreview";
 
 const root = document.getElementById("root");
 
@@ -13,6 +13,6 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <MarkdownPreviewer />
+    <MarkdownPreview />
   </StrictMode>,
 );

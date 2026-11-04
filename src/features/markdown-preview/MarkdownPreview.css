@@ -5,7 +5,10 @@
     height: 100dvh;
     display: grid;
     grid-template-rows: minmax(0, 1fr);
-    padding: var(--workspace-padding);
+    padding-block: calc(var(--workspace-padding) + env(safe-area-inset-top, 0px))
+      calc(var(--workspace-padding) + env(safe-area-inset-bottom, 0px));
+    padding-inline: calc(var(--workspace-padding) + env(safe-area-inset-left, 0px))
+      calc(var(--workspace-padding) + env(safe-area-inset-right, 0px));
   }
 
   .document-window__status {
