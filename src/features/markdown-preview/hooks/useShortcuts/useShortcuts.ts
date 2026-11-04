@@ -1,7 +1,10 @@
 import { useEffect, useEffectEvent } from "react";
 
 type ShortcutHandler = () => void;
-type Shortcuts = Record<string, ShortcutHandler>;
+
+interface Shortcuts {
+  [key: string]: ShortcutHandler;
+}
 
 export function useShortcuts(shortcuts: Shortcuts) {
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
