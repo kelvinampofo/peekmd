@@ -104,4 +104,21 @@ describe("Drawer", () => {
     expect(surface.getBoundingClientRect().right).toBeCloseTo(0);
     expect(handle.getBoundingClientRect().left).toBe(0);
   });
+
+  it.each([
+    { x: 56, y: 32 },
+    { x: 22, y: -8 },
+    { x: 22, y: 72 },
+  ])("accepts a press in the expanded handle target at $x,$y", async (position) => {
+    const onClick = vi.fn();
+    const screen = await render(
+      <Drawer {...closedState} ref={null} handleProps={{ onClick }}>
+        <Navigation />
+      </Drawer>,
+    );
+
+    await screen.getByRole("button", { name: "Open table of contents" }).click({ position });
+
+    expect(onClick).toHaveBeenCalledOnce();
+  });
 });

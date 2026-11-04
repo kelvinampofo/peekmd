@@ -371,6 +371,11 @@ describe("TableOfContents drawer", () => {
       .getBoundingClientRect().left;
     const handle = await openPanel(screen);
     const openLeft = handle.getBoundingClientRect().left;
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const surface = requireElement(drawer.querySelector(".table-of-contents-surface"), HTMLElement);
+    const stroke = requireElement(handle.querySelector("path"), SVGPathElement);
+    const openRight = surface.getBoundingClientRect().right;
+    const edgeInset = openRight - stroke.getBoundingClientRect().left;
 
     dragFrom(handle, [
       [360, 400],
@@ -378,6 +383,11 @@ describe("TableOfContents drawer", () => {
     ]);
     await vi.waitFor(() =>
       expect(handle.getBoundingClientRect().left).toBeCloseTo(openLeft - 100, 0),
+    );
+    expect(surface.getBoundingClientRect().right).toBeCloseTo(openRight - 100, 0);
+    expect(surface.getBoundingClientRect().right - stroke.getBoundingClientRect().left).toBeCloseTo(
+      edgeInset,
+      0,
     );
 
     handle.dispatchEvent(gesturePointerEvent("pointermove", 160, 400));

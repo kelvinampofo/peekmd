@@ -91,7 +91,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
       {
         currentIndex,
         headingCount: headings.length,
-        travelDistance: Math.max(window.innerWidth - event.currentTarget.offsetWidth, 1),
+        travelDistance: Math.max(window.innerWidth, 1),
       },
     );
 
