@@ -4,8 +4,8 @@ import { render, type RenderResult } from "vitest-browser-react";
 
 import "../../../../styles/system.css";
 
-import TableOfContents from "./TableOfContents";
 import { requireElement } from "../../test/dom";
+import TableOfContents from "./TableOfContents";
 import type { Heading } from "./types/heading";
 
 const headings: readonly Heading[] = [
@@ -18,14 +18,14 @@ interface FixtureProps {
   onNavigate?: (id: string) => void;
 }
 
-function Fixture({ headings: fixtureItems = headings, onNavigate }: FixtureProps) {
+function Fixture({ headings: fixtureHeadings = headings, onNavigate }: FixtureProps) {
   const contentRootRef = useRef<HTMLElement>(null);
   const scrollRootRef = useRef<HTMLElement>(null);
 
   return (
     <section ref={scrollRootRef} aria-label="TOC scroller">
       <TableOfContents
-        headings={fixtureItems}
+        headings={fixtureHeadings}
         contentRootRef={contentRootRef}
         scrollRootRef={scrollRootRef}
         {...(onNavigate ? { onNavigate } : {})}
@@ -39,18 +39,48 @@ function Fixture({ headings: fixtureItems = headings, onNavigate }: FixtureProps
   );
 }
 
-function elementRect(top: number, height = 40): DOMRect {
-  return {
-    bottom: top + height,
-    height,
-    left: 0,
-    right: 800,
-    top,
-    width: 800,
-    x: 0,
-    y: top,
-    toJSON: () => ({}),
-  };
+const longDocumentHeadings: readonly Heading[] = Array.from({ length: 40 }, (_, index) => ({
+  id: `section-${index}`,
+  text: `Section ${index}`,
+  level: 1,
+}));
+
+interface LongDocumentFixtureProps {
+  sectionHeight?: number;
+  onNavigate?: (id: string) => void;
+}
+
+function LongDocumentFixture({ sectionHeight = 250, onNavigate }: LongDocumentFixtureProps) {
+  const contentRootRef = useRef<HTMLElement>(null);
+  const scrollRootRef = useRef<HTMLElement>(null);
+
+  return (
+    <section
+      ref={scrollRootRef}
+      aria-label="Long document"
+      style={{
+        height: 350,
+        overflow: "auto",
+        display: "grid",
+        gridTemplateColumns: "240px 1fr",
+        alignItems: "start",
+      }}
+    >
+      <TableOfContents
+        headings={longDocumentHeadings}
+        contentRootRef={contentRootRef}
+        scrollRootRef={scrollRootRef}
+        {...(onNavigate ? { onNavigate } : {})}
+      />
+      <article ref={contentRootRef}>
+        {longDocumentHeadings.map((item) => (
+          <section key={item.id} style={{ height: sectionHeight }}>
+            <h2 id={item.id}>{item.text}</h2>
+          </section>
+        ))}
+      </article>
+    </section>
+  );
 }
 
 async function tabToNextControl() {
@@ -105,96 +135,155 @@ describe("TableOfContents", () => {
     await expect.element(screen.getByRole("link", { name: "Details" })).toHaveFocus();
   });
 
-  it("tracks the current and visible headings as its scroll root moves", async () => {
-    let detailsTop = 300;
-    const getBoundingClientRect = Element.prototype.getBoundingClientRect;
-
-    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
-      function (this: Element) {
-        if (this.id === "introduction") return elementRect(-100);
-        if (this.id === "details") return elementRect(detailsTop);
-        if (this.classList.contains("table-of-contents__scroll-map")) {
-          return elementRect(0, 84);
-        }
-        if (this.getAttribute("data-heading-id") === "introduction") return elementRect(0);
-        if (this.getAttribute("data-heading-id") === "details") return elementRect(44);
-        return getBoundingClientRect.call(this);
-      },
+  it("keeps the current heading visible in its own scroller without moving the article", async () => {
+    const screen = await render(<LongDocumentFixture />);
+    const articleScroller = screen.getByRole("region", { name: "Long document" }).element();
+    const target = screen.getByRole("heading", { name: "Section 30", exact: true }).element();
+    const link = screen.getByRole("link", { name: "Section 30", exact: true });
+    const navigation = screen.getByRole("navigation", { name: "Table of contents" }).element();
+    const drawer = requireElement(navigation.closest(".table-of-contents-drawer"), HTMLElement);
+    const navigationScroller = requireElement(
+      navigation.closest(".table-of-contents-drawer__content"),
+      HTMLElement,
     );
+    drawer.style.height = "260px";
 
-    const screen = await render(<Fixture />);
-    const introduction = screen.getByRole("link", { name: "Introduction" });
-    const details = screen.getByRole("link", { name: "Details" });
+    const positionOf = (heading: Element) =>
+      heading.getBoundingClientRect().top -
+      articleScroller.getBoundingClientRect().top +
+      articleScroller.scrollTop +
+      1;
+    const isInNavigationViewport = (item: Element) => {
+      const itemBounds = item.getBoundingClientRect();
+      const viewport = navigationScroller.getBoundingClientRect();
+      return itemBounds.top >= viewport.top - 1 && itemBounds.bottom <= viewport.bottom + 1;
+    };
 
-    await expect.element(introduction).toHaveAttribute("aria-current", "location");
+    const articlePosition = positionOf(target);
+    articleScroller.scrollTop = articlePosition;
 
-    detailsTop = -20;
-    const scrollRoot = screen.getByRole("region", { name: "TOC scroller" }).element();
-    Object.defineProperties(scrollRoot, {
-      clientHeight: { configurable: true, value: 250 },
-      scrollHeight: { configurable: true, value: 1000 },
-      scrollTop: { configurable: true, value: 500 },
+    await expect.element(link).toHaveAttribute("aria-current", "location");
+    await vi.waitFor(() => {
+      expect(isInNavigationViewport(link.element())).toBe(true);
+      expect(navigationScroller.scrollTop).toBeGreaterThan(0);
     });
-    scrollRoot.dispatchEvent(new Event("scroll"));
+    expect(articleScroller.scrollTop).toBeCloseTo(articlePosition, 0);
+
+    navigationScroller.scrollTop = 0;
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    expect(navigationScroller.scrollTop).toBe(0);
+    expect(articleScroller.scrollTop).toBeCloseTo(articlePosition, 0);
+
+    const earlierLink = screen.getByRole("link", { name: "Section 10", exact: true });
+    navigationScroller.scrollTop = navigationScroller.scrollHeight;
+    await new Promise(requestAnimationFrame);
+    expect(
+      earlierLink.element().getBoundingClientRect().bottom,
+      "Section 10 starts above the navigation viewport",
+    ).toBeLessThan(navigationScroller.getBoundingClientRect().top);
+
+    articleScroller.scrollTop = positionOf(
+      screen.getByRole("heading", { name: "Section 10", exact: true }).element(),
+    );
+    await expect.element(earlierLink).toHaveAttribute("aria-current", "location");
+    await vi.waitFor(() => expect(isInNavigationViewport(earlierLink.element())).toBe(true));
+
+    articleScroller.scrollTop = 0;
+    await expect
+      .element(screen.getByRole("link", { name: "Section 0", exact: true }))
+      .toHaveAttribute("aria-current", "location");
+    await vi.waitFor(() => expect(navigationScroller.scrollTop).toBe(0));
+  });
+
+  it("tracks a long section when its heading has scrolled off-screen", async () => {
+    const screen = await render(<LongDocumentFixture sectionHeight={1000} />);
+    const scrollContainer = screen.getByRole("region", { name: "Long document" }).element();
+    scrollContainer.scrollTop = 600;
+
+    const current = screen.getByRole("link", { name: "Section 0", exact: true });
+    await expect.element(current).toHaveAttribute("aria-current", "location");
+    await expect.element(current).toHaveAttribute("data-active", "true");
+    await expect
+      .element(screen.getByRole("link", { name: "Section 1", exact: true }))
+      .not.toHaveAttribute("data-active");
+  });
+
+  it("tracks a heading entering and leaving the bottom of the viewport", async () => {
+    const screen = await render(<LongDocumentFixture sectionHeight={350} />);
+    const scrollContainer = screen.getByRole("region", { name: "Long document" }).element();
+    const heading = screen.getByRole("heading", { name: "Section 1", exact: true }).element();
+    const link = screen.getByRole("link", { name: "Section 1", exact: true });
+
+    await expect
+      .element(screen.getByRole("link", { name: "Section 0", exact: true }))
+      .toHaveAttribute("aria-current", "location");
+    await new Promise(requestAnimationFrame);
     await new Promise(requestAnimationFrame);
 
-    await expect.element(details).toHaveAttribute("aria-current", "location");
-    await expect.element(introduction).not.toHaveAttribute("data-active");
-    await expect.element(details).toHaveAttribute("data-active", "true");
+    expect(heading.getBoundingClientRect().top).toBe(
+      scrollContainer.getBoundingClientRect().bottom,
+    );
+    await expect.element(link).not.toHaveAttribute("data-active");
 
-    const panel = screen
-      .getByRole("navigation", { name: "Table of contents" })
-      .element()
-      .closest<HTMLElement>(".table-of-contents-drawer");
+    scrollContainer.scrollTop = 1;
+    await expect.element(link).toHaveAttribute("data-active", "true");
 
-    expect(panel?.style.getPropertyValue("--table-of-contents-visible-size")).toBe("40px");
-    expect(panel?.style.getPropertyValue("--table-of-contents-visible-start")).toBe("44px");
+    scrollContainer.scrollTop = 0;
+    await expect.element(link).not.toHaveAttribute("data-active");
+
+    scrollContainer.scrollTop = 1;
+    await expect.element(link).toHaveAttribute("data-active", "true");
+  });
+
+  it("tracks the current section after the content grows", async () => {
+    const screen = await render(<LongDocumentFixture />);
+    const scrollContainer = screen.getByRole("region", { name: "Long document" }).element();
+    const article = screen.getByRole("article").element();
+    const firstSection = requireElement(article.querySelector("section"), HTMLElement);
+    firstSection.style.height = "20000px";
+    scrollContainer.scrollTop = 15000;
+
+    const current = screen.getByRole("link", { name: "Section 0", exact: true });
+    await expect.element(current).toHaveAttribute("aria-current", "location");
+    await expect.element(current).toHaveAttribute("data-active", "true");
+  });
+
+  it("updates visible sections when the viewport changes size", async () => {
+    const screen = await render(<LongDocumentFixture />);
+    const scrollContainer = screen.getByRole("region", { name: "Long document" }).element();
+    const next = screen.getByRole("link", { name: "Section 1", exact: true });
+    await expect.element(next).toHaveAttribute("data-active", "true");
+    const first = screen.getByRole("link", { name: "Section 0", exact: true }).element();
+    const drawer = requireElement(first.closest(".table-of-contents-drawer"), HTMLElement);
+    const thumb = requireElement(
+      drawer.querySelector(".table-of-contents__scroll-thumb"),
+      HTMLElement,
+    );
+    const firstItem = requireElement(first.closest("li"), HTMLLIElement).getBoundingClientRect();
+    const nextItem = requireElement(
+      next.element().closest("li"),
+      HTMLLIElement,
+    ).getBoundingClientRect();
+    await vi.waitFor(() => {
+      const bounds = thumb.getBoundingClientRect();
+      expect(bounds.top).toBeCloseTo(firstItem.top);
+      expect(bounds.bottom).toBeCloseTo(nextItem.bottom);
+    });
+
+    scrollContainer.style.height = "150px";
+
+    await expect.element(next).not.toHaveAttribute("data-active");
+    await vi.waitFor(() => {
+      const bounds = thumb.getBoundingClientRect();
+      expect(bounds.top).toBeCloseTo(firstItem.top);
+      expect(bounds.bottom).toBeCloseTo(firstItem.bottom);
+    });
+    await expect
+      .element(screen.getByRole("link", { name: "Section 0", exact: true }))
+      .toHaveAttribute("aria-current", "location");
   });
 });
-
-const longDocumentHeadings: readonly Heading[] = Array.from({ length: 40 }, (_, index) => ({
-  id: `section-${index}`,
-  text: `Section ${index}`,
-  level: 1,
-}));
-
-interface LongDocumentFixtureProps {
-  sectionHeight?: number;
-  onNavigate?: (id: string) => void;
-}
-
-function LongDocumentFixture({ sectionHeight = 250, onNavigate }: LongDocumentFixtureProps) {
-  const contentRootRef = useRef<HTMLElement>(null);
-  const scrollRootRef = useRef<HTMLElement>(null);
-
-  return (
-    <section
-      ref={scrollRootRef}
-      aria-label="Long document"
-      style={{
-        height: 350,
-        overflow: "auto",
-        display: "grid",
-        gridTemplateColumns: "240px 1fr",
-        alignItems: "start",
-      }}
-    >
-      <TableOfContents
-        headings={longDocumentHeadings}
-        contentRootRef={contentRootRef}
-        scrollRootRef={scrollRootRef}
-        {...(onNavigate ? { onNavigate } : {})}
-      />
-      <article ref={contentRootRef}>
-        {longDocumentHeadings.map((item) => (
-          <section key={item.id} style={{ height: sectionHeight }}>
-            <h2 id={item.id}>{item.text}</h2>
-          </section>
-        ))}
-      </article>
-    </section>
-  );
-}
 
 function gestureTouchEvent(
   type: "touchstart" | "touchmove" | "touchend" | "touchcancel",
