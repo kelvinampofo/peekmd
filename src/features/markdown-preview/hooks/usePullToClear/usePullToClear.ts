@@ -1,5 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import { clamp } from "../../../../utils/math";
+
 import {
   isTouchGestureControl,
   listenForClaimedTouchGesture,
@@ -34,7 +36,7 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
     };
 
     const updateProgress = (distance: number) => {
-      const progress = Math.min(Math.max(distance / CLEAR_THRESHOLD, 0), 1);
+      const progress = clamp(distance / CLEAR_THRESHOLD, 0, 1);
 
       scroller.style.setProperty("--clear-progress", progress.toString());
       scroller.toggleAttribute("data-clear-ready", progress === 1);
