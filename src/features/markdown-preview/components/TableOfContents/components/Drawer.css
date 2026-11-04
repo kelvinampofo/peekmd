@@ -2,7 +2,10 @@
   .table-of-contents-drawer {
     position: sticky;
     top: 0;
-    height: calc(100dvh - 2 * var(--workspace-padding, 0px));
+    height: calc(
+      100dvh - 2 * var(--workspace-padding, 0px) - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
     min-height: 0;
   }
 

@@ -2,7 +2,7 @@ import { page, userEvent } from "vitest/browser";
 import { render } from "vitest-browser-react";
 import type { RenderResult } from "vitest-browser-react";
 
-import MarkdownPreviewer from "./MarkdownPreviewer";
+import MarkdownPreview from "./MarkdownPreview";
 import { startPull, touchEvent } from "./test/touch";
 
 function markdownFile(name: string, contents: string) {
@@ -52,10 +52,10 @@ async function pullToClear(screen: RenderResult) {
   return scroller;
 }
 
-describe("MarkdownPreviewer", { tags: "integration" }, () => {
+describe("MarkdownPreview", { tags: "integration" }, () => {
   describe("empty state", () => {
     it("does not scroll", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       expect(getComputedStyle(documentWindow(screen)).overflow).toBe("hidden");
     });
@@ -65,7 +65,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     it.each(["notes.md", "notes.markdown", "NOTES.MD", "Notes.Markdown"])(
       "opens %s",
       async (name) => {
-        const screen = await render(<MarkdownPreviewer />);
+        const screen = await render(<MarkdownPreview />);
 
         await selectFile(screen, markdownFile(name, `# Preview of ${name}`));
 
@@ -76,7 +76,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     );
 
     it("opens an empty document", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("empty.md", ""));
 
@@ -85,7 +85,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     });
 
     it("previews a dropped file", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       dropFile(
         screen,
@@ -97,7 +97,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     });
 
     it("replaces the current preview", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("first.md", "# First document"));
       await expect.element(screen.getByRole("heading", { name: "First document" })).toBeVisible();
@@ -113,7 +113,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
   describe("shortcuts", () => {
     it("'C' clears the preview", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
@@ -125,7 +125,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     });
 
     it("'O' opens the file picker", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       const click = vi.spyOn(HTMLInputElement.prototype, "click");
@@ -138,7 +138,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
   describe("pulling past the end of a document", () => {
     it("returns to the top of the empty state after clearing the preview", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
       await expect.element(screen.getByRole("heading", { name: "Notes" })).toBeVisible();
@@ -159,7 +159,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
   describe("table of contents at the end of a document", () => {
     it("keeps the preview when a drag starts on the handle", async () => {
       await page.viewport(390, 844);
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
       const sections = Array.from(
         { length: 12 },
         (_section, index) => `## Section ${index}\n\n${"Paragraph text. ".repeat(40)}`,
@@ -190,7 +190,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
   describe("actions at the end of a document", () => {
     it("hides touch actions for a precise pointer", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
 
@@ -201,7 +201,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
   describe("file reading", () => {
     it("rejects unsupported files", async () => {
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       dropFile(screen, new File(["plain text"], "notes.txt"));
 
@@ -211,7 +211,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
     it("marks the preview busy while reading", async () => {
       vi.spyOn(File.prototype, "text").mockReturnValue(new Promise<string>(() => {}));
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("slow.md", ""));
 
@@ -222,7 +222,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
 
     it("shows an error when reading fails", async () => {
       vi.spyOn(File.prototype, "text").mockRejectedValue(new Error("File is unavailable"));
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("unreadable.md", ""));
 
@@ -232,7 +232,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
     it("ignores a read completed after clearing", async () => {
       const pendingRead = Promise.withResolvers<string>();
       vi.spyOn(File.prototype, "text").mockReturnValue(pendingRead.promise);
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("slow.md", ""));
       await expect
@@ -261,7 +261,7 @@ describe("MarkdownPreviewer", { tags: "integration" }, () => {
       vi.spyOn(File.prototype, "text").mockImplementation(function (this: File) {
         return reads.get(this.name) ?? Promise.reject(new Error(`Unexpected file: ${this.name}`));
       });
-      const screen = await render(<MarkdownPreviewer />);
+      const screen = await render(<MarkdownPreview />);
 
       await selectFile(screen, markdownFile("first.md", ""));
       await selectFile(screen, markdownFile("second.md", ""));
