@@ -143,9 +143,11 @@ describe("Drawer", () => {
           ? new PointerEvent(type, { bubbles: true })
           : new MouseEvent(type, { bubbles: true }),
       );
-      await vi.waitFor(() =>
-        expect(frame.querySelector(".table-of-contents-gesture-hint")).toBeNull(),
+      const hint = requireElement(
+        frame.querySelector(".table-of-contents-gesture-hint"),
+        HTMLElement,
       );
+      await vi.waitFor(() => expect(getComputedStyle(hint).opacity).toBe("0"));
 
       await screen.rerender(
         <Drawer {...closedState} ref={frameRef} isOpen openProgress={1} handleProps={{}}>
@@ -158,9 +160,58 @@ describe("Drawer", () => {
         </Drawer>,
       );
 
-      expect(frame.querySelector(".table-of-contents-gesture-hint")).toBeNull();
+      expect(getComputedStyle(hint).opacity).toBe("0");
     },
   );
+
+  it("fades and blurs a visible hint when the handle is pressed", async () => {
+    const frameRef = createRef<HTMLDivElement>();
+    const screen = await render(
+      <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+        <Navigation />
+      </Drawer>,
+    );
+    const frame = requireElement(frameRef.current, HTMLDivElement);
+    const hint = requireElement(
+      frame.querySelector(".table-of-contents-gesture-hint"),
+      HTMLElement,
+    );
+
+    for (const animation of hint.getAnimations({ subtree: true })) {
+      animation.pause();
+      animation.currentTime = 5000;
+    }
+
+    expect(getComputedStyle(hint).visibility).toBe("visible");
+    expect(getComputedStyle(hint).opacity).toBe("1");
+    screen
+      .getByRole("button", { name: "Open table of contents" })
+      .element()
+      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+    await vi.waitFor(() =>
+      expect(hint.getAnimations().some((animation) => animation instanceof CSSTransition)).toBe(
+        true,
+      ),
+    );
+    const transitions = hint
+      .getAnimations()
+      .filter((animation) => animation instanceof CSSTransition);
+
+    for (const transition of transitions) {
+      transition.pause();
+      transition.currentTime = 90;
+    }
+
+    const opacity = Number(getComputedStyle(hint).opacity);
+    expect(opacity).toBeGreaterThan(0);
+    expect(opacity).toBeLessThan(1);
+    expect(getComputedStyle(hint).filter).toContain("blur");
+
+    for (const transition of transitions) transition.finish();
+
+    await vi.waitFor(() => expect(getComputedStyle(hint).opacity).toBe("0"));
+  });
 
   it("keeps the list off-screen while the handle is dragged", async () => {
     const frameRef = createRef<HTMLDivElement>();

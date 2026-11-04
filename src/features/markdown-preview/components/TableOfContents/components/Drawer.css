@@ -93,23 +93,44 @@
       top: 50%;
       width: 32px;
       height: 32px;
-      border-radius: 50%;
-      background: var(--color-foreground);
-      opacity: 0.16;
       translate: 0 -50%;
       pointer-events: none;
       visibility: hidden;
       animation: table-of-contents-show-hint 0s linear 5s forwards;
+      transition:
+        opacity 180ms var(--ease-out),
+        filter 180ms var(--ease-out);
 
-      @media (prefers-reduced-motion: no-preference) {
-        animation:
-          table-of-contents-show-hint 0s linear 5s forwards,
-          table-of-contents-drag-hint 2.6s ease-in-out 5s infinite;
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
       }
     }
 
-    .table-of-contents-drawer:is([data-open], [data-dragging]) .table-of-contents-gesture-hint {
-      display: none;
+    .table-of-contents-gesture-hint__dot {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--color-foreground);
+      opacity: 0.16;
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation: table-of-contents-drag-hint 2.6s ease-in-out 5s infinite;
+      }
+    }
+
+    .table-of-contents-gesture-hint[data-dismissed] {
+      opacity: 0;
+      filter: blur(4px);
+      animation-play-state: paused;
+
+      @media (prefers-reduced-motion: reduce) {
+        filter: none;
+      }
+    }
+
+    .table-of-contents-gesture-hint[data-dismissed] .table-of-contents-gesture-hint__dot {
+      animation-play-state: paused;
     }
 
     @keyframes table-of-contents-show-hint {

@@ -78,7 +78,13 @@ export default function Drawer({
         onClickCapture={dismissHint}
         type="button"
       >
-        {!hasInteracted && <span className="table-of-contents-gesture-hint" aria-hidden="true" />}
+        <span
+          className="table-of-contents-gesture-hint"
+          data-dismissed={hasInteracted || isOpen || isDragging || undefined}
+          aria-hidden="true"
+        >
+          <span className="table-of-contents-gesture-hint__dot" />
+        </span>
         <svg aria-hidden="true" viewBox="0 0 28 44">
           <path
             className="table-of-contents-handle__stroke table-of-contents-handle__stroke--upper"
