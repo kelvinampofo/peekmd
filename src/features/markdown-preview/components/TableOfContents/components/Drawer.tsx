@@ -29,7 +29,7 @@ export default function Drawer({
 }: DrawerProps) {
   const handleShapeProgress = isOpen ? 0 : openProgress;
   const handlePointX = 4 + handleShapeProgress * 10;
-  const revealProgress = isOpen ? 1 : 0;
+  const revealProgress = isOpen ? openProgress : 0;
   const handleOffset = isOpen ? 32 : 4 + openProgress * 8;
 
   const style: DrawerStyle = {
@@ -53,7 +53,7 @@ export default function Drawer({
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close table of contents" : "Open table of contents"}
         className="table-of-contents-handle"
-        data-touch-gesture-control=""
+        data-gesture-control=""
         {...handleProps}
         type="button"
       >

@@ -1,22 +1,22 @@
-import { useCallback, useEffect, useEffectEvent, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type MouseEvent,
+  type PointerEvent,
+  type RefObject,
+} from "react";
 
-import { claimTouchGesture } from "../../../interactions/touchGesture";
 import type { Heading } from "../types/heading";
+import { moveGesture, releaseGesture, type GestureState } from "../gestures/drawer";
+import { useDismissal } from "./useDismissal";
 
-const OPEN_DISTANCE = 88;
-const SCRUB_STEP = 32;
-
-interface MobileGesture {
-  baseIndex: number;
-  didDrag: boolean;
-  hasScrubbed: boolean;
-  mode: "ignored" | "opening" | "pending" | "scrubbing";
-  scrubOriginY: number;
-  selectedIndex: number;
-  startX: number;
-  startY: number;
-  startedOnHeading: boolean;
-}
+type DrawerState =
+  | { phase: "closed" }
+  | { phase: "opening"; progress: number }
+  | { phase: "closing"; progress: number }
+  | { phase: "open"; selectedId: string | undefined };
 
 interface DrawerOptions {
   contentRootRef: RefObject<HTMLElement | null>;
@@ -26,230 +26,191 @@ interface DrawerOptions {
 }
 
 export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }: DrawerOptions) {
-  const gestureRef = useRef<MobileGesture | undefined>(undefined);
-  const suppressNextClickRef = useRef(false);
-  const suppressionTimeoutRef = useRef<number | undefined>(undefined);
-  const [isOpen, setIsOpen] = useState(false);
-  const [openProgress, setOpenProgress] = useState(0);
-  const [scrubbedId, setScrubbedId] = useState<string>();
+  const handleRef = useRef<HTMLButtonElement>(null);
+  const gestureRef = useRef<GestureState>({ phase: "idle" });
 
-  const getState = useEffectEvent(() => ({ currentIndex, isOpen, headings }));
-  const reportNavigation = useEffectEvent((id: string) => onNavigate?.(id));
+  const [drawer, setDrawer] = useState<DrawerState>({ phase: "closed" });
 
-  const close = useCallback(() => {
-    setIsOpen(false);
-    setOpenProgress(0);
-    setScrubbedId(undefined);
-  }, []);
+  const isOpen = drawer.phase === "open" || drawer.phase === "closing";
+  const isDragging = drawer.phase === "opening" || drawer.phase === "closing";
+  const openProgress = isDragging ? drawer.progress : isOpen ? 1 : 0;
+  const scrubbedId = drawer.phase === "open" ? drawer.selectedId : undefined;
 
-  const scrollToItem = useEffectEvent((index: number) => {
-    const item = headings[index];
-    const contentRoot = contentRootRef.current;
-
-    if (!item || !contentRoot) return;
-
-    const heading = Array.from(contentRoot.querySelectorAll<HTMLElement>("[id]")).find(
-      (element) => element.id === item.id,
-    );
-
-    heading?.scrollIntoView({ behavior: "auto", block: "start" });
-    setScrubbedId(item.id);
-  });
+  const close = () => {
+    gestureRef.current = { phase: "idle" };
+    setDrawer({ phase: "closed" });
+  };
 
   const toggle = () => {
-    if (isOpen) {
-      close();
+    if (isOpen) close();
+    else setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
+  };
+
+  const scrollToHeading = (index: number) => {
+    const heading = headings[index];
+    const contentRoot = contentRootRef.current;
+
+    if (!heading || !contentRoot) return;
+
+    const target = Array.from(contentRoot.querySelectorAll("[id]")).find(
+      (element) => element.id === heading.id,
+    );
+
+    target?.scrollIntoView({ behavior: "auto", block: "start" });
+    setDrawer({ phase: "open", selectedId: heading.id });
+  };
+
+  const handlePointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (
+      !event.isPrimary ||
+      event.button !== 0 ||
+      headings.length === 0 ||
+      !window.matchMedia("(max-width: 900px)").matches
+    ) {
       return;
     }
 
-    setIsOpen(true);
-    setOpenProgress(1);
-    setScrubbedId(headings[currentIndex]?.id);
+    gestureRef.current = {
+      phase: "pressed",
+      pointerId: event.pointerId,
+      origin: { x: event.clientX, y: event.clientY },
+      startedOpen: isOpen,
+    };
+
+    event.currentTarget.setPointerCapture(event.pointerId);
   };
 
-  useEffect(() => {
-    const media = window.matchMedia("(max-width: 900px)");
+  const handlePointerMove = (event: PointerEvent<HTMLButtonElement>) => {
+    const previous = gestureRef.current;
 
-    const isHeadingTarget = (target: EventTarget | null) =>
-      target instanceof Element && target.closest(".table-of-contents__link") !== null;
+    if (!("pointerId" in previous) || previous.pointerId !== event.pointerId) return;
 
-    const handleTouchStart = (event: TouchEvent) => {
-      const state = getState();
-      const touch = event.touches[0];
+    const gesture = moveGesture(
+      previous,
+      { x: event.clientX, y: event.clientY },
+      {
+        currentIndex,
+        headingCount: headings.length,
+        travelDistance: Math.max(window.innerWidth - event.currentTarget.offsetWidth, 1),
+      },
+    );
 
-      if (!media.matches || event.touches.length !== 1 || !touch) return;
+    gestureRef.current = gesture;
 
-      suppressNextClickRef.current = false;
-      gestureRef.current = {
-        baseIndex: state.currentIndex,
-        didDrag: false,
-        hasScrubbed: false,
-        mode: state.isOpen ? "scrubbing" : "pending",
-        scrubOriginY: touch.clientY,
-        selectedIndex: state.currentIndex,
-        startX: touch.clientX,
-        startY: touch.clientY,
-        startedOnHeading: isHeadingTarget(event.target),
-      };
+    if (gesture.phase === "revealing" || gesture.phase === "closing") {
+      setDrawer({
+        phase: gesture.phase === "closing" ? "closing" : "opening",
+        progress: gesture.progress,
+      });
+    } else if (gesture.phase === "scrubbing") {
+      if (previous.phase !== "scrubbing") {
+        setDrawer({ phase: "open", selectedId: headings[gesture.selectedIndex]?.id });
+      }
 
-      if (state.isOpen) setScrubbedId(state.headings[state.currentIndex]?.id);
-    };
+      if (
+        gesture.hasScrubbed &&
+        (previous.phase !== "scrubbing" || previous.selectedIndex !== gesture.selectedIndex)
+      ) {
+        scrollToHeading(gesture.selectedIndex);
+      }
+    }
+  };
 
-    const handleTouchMove = (event: TouchEvent) => {
-      const gesture = gestureRef.current;
-      const touch = event.touches[0];
+  const finishGesture = (event: PointerEvent<HTMLButtonElement>, cancelled: boolean) => {
+    const gesture = gestureRef.current;
 
-      if (!gesture) return;
+    if (!("pointerId" in gesture) || gesture.pointerId !== event.pointerId) return;
 
-      if (event.touches.length !== 1 || !touch) {
-        gestureRef.current = undefined;
+    gestureRef.current = { phase: "idle" };
+
+    const result = releaseGesture(gesture, cancelled);
+
+    switch (result.action) {
+      case "none":
+        break;
+      case "toggle":
+        if (event.pointerType === "touch") toggle();
+        break;
+      case "open":
+        setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
+        break;
+      case "close":
         close();
-        return;
+        break;
+      case "navigate": {
+        const heading = headings[result.index];
+        if (heading) onNavigate?.(heading.id);
+
+        close();
+        break;
       }
+      default:
+        result satisfies never;
+    }
 
-      if (gesture.mode === "pending") {
-        const horizontalDistance = touch.clientX - gesture.startX;
-        const verticalDistance = touch.clientY - gesture.startY;
+    if (cancelled || gesture.phase !== "pressed" || event.pointerType === "touch") {
+      gestureRef.current = { phase: "released" };
+    }
 
-        if (Math.max(Math.abs(horizontalDistance), Math.abs(verticalDistance)) <= 4) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
 
-        const preservesNativeScroll =
-          Math.abs(verticalDistance) >= Math.abs(horizontalDistance) || horizontalDistance <= 0;
-
-        gesture.mode = preservesNativeScroll ? "ignored" : "opening";
-
-        if (gesture.mode === "opening") {
-          gesture.didDrag = true;
-          claimTouchGesture();
-        }
-      }
-
-      if (gesture.mode === "ignored") return;
-
-      if (gesture.mode === "opening") {
-        const distance = Math.max(touch.clientX - gesture.startX, 0);
-        const progress = Math.min(distance / OPEN_DISTANCE, 1);
-
-        event.preventDefault();
-        setOpenProgress(progress);
-
-        if (progress === 1) {
-          const state = getState();
-          gesture.mode = "scrubbing";
-          gesture.scrubOriginY = touch.clientY;
-          gesture.baseIndex = state.currentIndex;
-          gesture.selectedIndex = state.currentIndex;
-          setIsOpen(true);
-          setScrubbedId(state.headings[state.currentIndex]?.id);
-        }
-
-        return;
-      }
-
+  const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
+    if (event.detail !== 0 && gestureRef.current.phase === "released") {
+      gestureRef.current = { phase: "idle" };
       event.preventDefault();
-      const state = getState();
-      const indexDelta = Math.trunc((touch.clientY - gesture.scrubOriginY) / SCRUB_STEP);
-      const nextIndex = Math.min(
-        Math.max(gesture.baseIndex + indexDelta, 0),
-        state.headings.length - 1,
-      );
+      event.stopPropagation();
+      return;
+    }
 
-      if (nextIndex === gesture.selectedIndex) return;
+    gestureRef.current = { phase: "idle" };
+    toggle();
+  };
 
-      gesture.didDrag = true;
-      gesture.hasScrubbed = true;
-      gesture.selectedIndex = nextIndex;
-      scrollToItem(nextIndex);
+  const onViewportChange = useEffectEvent(close);
+
+  useEffect(() => {
+    const handle = handleRef.current;
+
+    if (!handle) return;
+
+    const media = window.matchMedia("(max-width: 900px)");
+    const controller = new AbortController();
+    const { signal } = controller;
+
+    const preventBrowserGesture = (event: TouchEvent) => {
+      // cancel touchstart to suppress ios safari's history swipe
+      // https://bugs.webkit.org/show_bug.cgi?id=240892
+      if (media.matches && event.touches.length === 1) event.preventDefault();
     };
 
-    const finishGesture = (cancelled = false) => {
-      const gesture = gestureRef.current;
-
-      if (!gesture) return;
-      gestureRef.current = undefined;
-
-      const tappedOutsideHeadingList =
-        !cancelled && gesture.mode === "scrubbing" && !gesture.didDrag && !gesture.startedOnHeading;
-
-      if (gesture.didDrag || tappedOutsideHeadingList) {
-        suppressNextClickRef.current = true;
-        window.clearTimeout(suppressionTimeoutRef.current);
-        suppressionTimeoutRef.current = window.setTimeout(() => {
-          suppressNextClickRef.current = false;
-        });
-      }
-
-      if (cancelled) {
-        if (gesture.mode === "opening" || gesture.mode === "pending") close();
-        return;
-      }
-
-      if (tappedOutsideHeadingList) {
-        close();
-        return;
-      }
-
-      if (gesture.mode === "ignored" || gesture.mode === "pending") return;
-
-      if (gesture.mode === "opening") {
-        setOpenProgress(0);
-        return;
-      }
-
-      if (gesture.hasScrubbed) {
-        const item = getState().headings[gesture.selectedIndex];
-        if (item) reportNavigation(item.id);
-        close();
-      }
-    };
-
-    const handleClick = (event: MouseEvent) => {
-      if (suppressNextClickRef.current) {
-        suppressNextClickRef.current = false;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        return;
-      }
-
-      if (getState().isOpen && !isHeadingTarget(event.target)) close();
-    };
-
-    const handleTouchCancel = () => finishGesture(true);
-    const handleTouchEnd = () => finishGesture();
-
-    window.addEventListener("click", handleClick, true);
-    window.addEventListener("touchcancel", handleTouchCancel);
-    window.addEventListener("touchend", handleTouchEnd);
-    window.addEventListener("touchmove", handleTouchMove, { passive: false });
-    window.addEventListener("touchstart", handleTouchStart, { passive: true });
+    handle.addEventListener("touchstart", preventBrowserGesture, { passive: false, signal });
+    media.addEventListener("change", onViewportChange, { signal });
 
     return () => {
-      window.clearTimeout(suppressionTimeoutRef.current);
-      window.removeEventListener("click", handleClick, true);
-      window.removeEventListener("touchcancel", handleTouchCancel);
-      window.removeEventListener("touchend", handleTouchEnd);
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchstart", handleTouchStart);
+      gestureRef.current = { phase: "idle" };
+      controller.abort();
     };
-  }, [close, contentRootRef]);
+  }, [headings]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [close, isOpen]);
+  useDismissal({ isOpen, handleRef, onDismiss: close });
 
   return {
     close,
     isOpen,
-    isDragging: openProgress > 0 && !isOpen,
+    isDragging,
     openProgress,
     scrubbedId,
-    handleProps: { onClick: toggle },
+    handleProps: {
+      ref: handleRef,
+      onClick: handleClick,
+      onPointerDown: handlePointerDown,
+      onPointerMove: handlePointerMove,
+      onPointerUp: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, false),
+      onPointerCancel: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, true),
+      onLostPointerCapture: (event: PointerEvent<HTMLButtonElement>) => finishGesture(event, true),
+    },
   };
 }
