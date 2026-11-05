@@ -3,7 +3,7 @@ type TouchEventType = "touchstart" | "touchmove" | "touchend" | "touchcancel";
 
 export function touchEvent(type: TouchEventType, clientYs: readonly number[]) {
   const event = new UIEvent(type, { bubbles: true });
-  const touches = clientYs.map((clientY) => ({ clientY }));
+  const touches = clientYs.map((clientY) => ({ clientX: 0, clientY }));
 
   Object.defineProperty(event, "touches", {
     value: type === "touchend" || type === "touchcancel" ? [] : touches,

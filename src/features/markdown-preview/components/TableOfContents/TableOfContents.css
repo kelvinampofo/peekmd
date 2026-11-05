@@ -1,0 +1,87 @@
+@layer components {
+  .table-of-contents__scroll-map {
+    position: relative;
+    width: var(--scrollbar-size);
+    color: var(--scrollbar-thumb-color);
+    background: var(--scrollbar-track-color);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .table-of-contents__scroll-thumb {
+    position: absolute;
+    inset-inline: 0;
+    top: var(--table-of-contents-visible-start, 0);
+    height: var(--table-of-contents-visible-size, 100%);
+    background: currentColor;
+    transition:
+      top var(--duration-movement) var(--ease-out),
+      height var(--duration-movement) var(--ease-out);
+  }
+
+  .table-of-contents {
+    min-width: 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .table-of-contents__list {
+    list-style: none;
+  }
+
+  .table-of-contents__item {
+    padding-inline-start: calc((var(--table-of-contents-level) - 1) * var(--space-12));
+  }
+
+  .table-of-contents__item + .table-of-contents__item {
+    margin-block-start: var(--space-4);
+  }
+
+  .table-of-contents__link {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    padding-block: var(--space-4);
+    color: var(--color-foreground-secondary);
+    font-weight: 500;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+    transition: color var(--duration-hover);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .table-of-contents__link:hover {
+      color: var(--color-foreground);
+    }
+  }
+
+  .table-of-contents__link:focus-visible {
+    outline: 2px solid var(--color-ring, currentColor);
+    outline-offset: 2px;
+    border-radius: 0.125em;
+  }
+
+  .table-of-contents__link[data-active] {
+    color: var(--color-foreground);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .table-of-contents__scroll-thumb {
+      transition: none;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .table-of-contents__link {
+      padding-block: var(--space-8);
+      font-size: 0.875rem;
+    }
+
+    .table-of-contents {
+      width: min(100%, 24rem);
+      touch-action: pinch-zoom;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+}
