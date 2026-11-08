@@ -1,8 +1,9 @@
 import { clamp } from "../../../../../utils/math";
 
 const OPEN_DISTANCE = 120;
-const CLOSE_THRESHOLD = 0.5;
+const CLOSE_THRESHOLD = 0.8;
 const DRAG_HYSTERESIS_DISTANCE = 4;
+const SCRUB_HYSTERESIS_DISTANCE = 16;
 const SCRUB_STEP = 32;
 
 interface Position {
@@ -124,12 +125,16 @@ export function moveGesture(
         progress: clamp(1 + (position.x - drag.originX) / travelDistance, 0, 1),
       };
     case "scrubbing": {
+      const verticalDistance = position.y - drag.originY;
+
+      if (Math.abs(verticalDistance) < SCRUB_HYSTERESIS_DISTANCE && !drag.hasScrubbed) {
+        return drag;
+      }
+
       const indexDelta = Math.trunc((position.y - drag.originY) / SCRUB_STEP);
       const selectedIndex = clamp(drag.originIndex + indexDelta, 0, headingCount - 1);
 
-      return selectedIndex === drag.selectedIndex
-        ? drag
-        : { ...drag, selectedIndex, hasScrubbed: true };
+      return { ...drag, selectedIndex, hasScrubbed: true };
     }
     default:
       return drag satisfies never;
