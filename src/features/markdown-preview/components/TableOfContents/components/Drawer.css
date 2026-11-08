@@ -161,8 +161,8 @@
     .table-of-contents-handle::before {
       content: "";
       position: absolute;
-      inset-block: calc(-1 * var(--space-12));
-      inset-inline: calc(-1 * var(--space-16));
+      inset-block: calc(-1 * var(--space-32));
+      inset-inline: calc(-1 * var(--space-32));
     }
 
     .table-of-contents-handle svg {
