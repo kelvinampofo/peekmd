@@ -127,7 +127,7 @@ export function moveGesture(
     case "scrubbing": {
       const verticalDistance = position.y - drag.originY;
 
-      if (Math.abs(verticalDistance) < SCRUB_HYSTERESIS_DISTANCE && !drag.hasScrubbed) {
+      if (Math.abs(verticalDistance) <= SCRUB_HYSTERESIS_DISTANCE && !drag.hasScrubbed) {
         return drag;
       }
 
