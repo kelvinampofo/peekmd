@@ -67,9 +67,15 @@ function backgroundAlpha(element: HTMLElement) {
   return alpha;
 }
 
+function getTransitions(element: Element) {
+  return element
+    .getAnimations({ subtree: true })
+    .filter((animation) => animation instanceof CSSTransition);
+}
+
 async function settle(element: Element) {
   await new Promise(requestAnimationFrame);
-  await Promise.all(element.getAnimations({ subtree: true }).map(({ finished }) => finished));
+  await Promise.all(getTransitions(element).map(({ finished }) => finished));
 }
 
 async function openPanel(screen: RenderResult) {
@@ -111,13 +117,13 @@ describe("TableOfContents drawer", () => {
     expect(drawer.getBoundingClientRect().height).toBeCloseTo(844, 1);
     await screen.getByRole("link", { name: "Details" }).click();
 
-    expect(onNavigate).toHaveBeenCalledWith("details");
+    await vi.waitFor(() => expect(onNavigate).toHaveBeenCalledWith("details"));
     await expect
       .element(screen.getByRole("button", { name: "Open table of contents" }))
       .toHaveAttribute("aria-expanded", "false");
   });
 
-  it("makes the background more opaque while the drawer returns off-screen", async () => {
+  it("keeps the glass and text appearance steady while the drawer returns off-screen", async () => {
     const screen = await render(<Fixture />);
     const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
     const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
@@ -136,7 +142,7 @@ describe("TableOfContents drawer", () => {
     await screen.getByRole("button", { name: "Close table of contents" }).click();
 
     await vi.waitFor(() => expect(surface.getAnimations().length).toBeGreaterThan(0));
-    const animations = drawer.getAnimations({ subtree: true });
+    const animations = getTransitions(drawer);
 
     for (const animation of animations) {
       animation.pause();
@@ -147,14 +153,85 @@ describe("TableOfContents drawer", () => {
     expect(surface.getBoundingClientRect().left).toBeGreaterThan(-390);
     expect(surface.getBoundingClientRect().left).toBeLessThan(0);
     expect(getComputedStyle(surface).opacity).toBe("1");
-    expect(backgroundAlpha(surface)).toBeGreaterThan(openAlpha);
+    expect(backgroundAlpha(surface)).toBe(openAlpha);
     expect(getComputedStyle(surface).backdropFilter).toContain("blur");
 
     for (const animation of animations) animation.finish();
 
     await vi.waitFor(() => expect(getComputedStyle(content).visibility).toBe("hidden"));
-    expect(backgroundAlpha(surface)).toBe(255);
+    expect(backgroundAlpha(surface)).toBe(openAlpha);
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("finishes closing before following a heading link", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
+    const handle = await openPanel(screen);
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+
+    drawer.addEventListener(
+      "transitionrun",
+      () => {
+        for (const animation of getTransitions(drawer)) animation.pause();
+      },
+      { once: true },
+    );
+
+    await screen.getByRole("link", { name: "Section 2", exact: true }).click();
+
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(scroller.scrollTop).toBe(0);
+
+    for (const animation of getTransitions(drawer)) animation.finish();
+
+    await vi.waitFor(() => expect(onNavigate).toHaveBeenCalledWith("section-2"));
+    await vi.waitFor(() => expect(scroller.scrollTop).toBeGreaterThan(0));
+    await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("follows the pending heading when closing switches to the desktop layout", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<Fixture onNavigate={onNavigate} />);
+    const handle = await openPanel(screen);
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+
+    drawer.addEventListener(
+      "transitionrun",
+      () => {
+        for (const animation of getTransitions(drawer)) animation.pause();
+      },
+      { once: true },
+    );
+
+    await screen.getByRole("link", { name: "Details" }).click();
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    await page.viewport(1280, 800);
+
+    await vi.waitFor(() => expect(onNavigate).toHaveBeenCalledExactlyOnceWith("details"));
+  });
+
+  it("cancels pending heading navigation when the drawer is reopened", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<Fixture onNavigate={onNavigate} />);
+    const handle = await openPanel(screen);
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+
+    drawer.addEventListener(
+      "transitionrun",
+      () => {
+        for (const animation of getTransitions(drawer)) animation.pause();
+      },
+      { once: true },
+    );
+
+    await screen.getByRole("link", { name: "Details" }).click();
+    await screen.getByRole("button", { name: "Open table of contents" }).click();
+    await settle(drawer);
+
+    expect(onNavigate).not.toHaveBeenCalled();
+    await expect.element(handle).toHaveAttribute("aria-expanded", "true");
   });
 
   it.each(["pointerup", "pointercancel"] as const)(
@@ -211,6 +288,40 @@ describe("TableOfContents drawer", () => {
     handle.dispatchEvent(gesturePointerEvent("pointerup", 130, 484));
 
     expect(onNavigate).toHaveBeenCalledWith("section-2");
+    await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("scrubs down and up from a fresh press on an open handle", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
+    const handle = await openPanel(screen);
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+    const second = screen.getByRole("heading", { name: "Section 2", exact: true }).element();
+    const first = screen.getByRole("heading", { name: "Section 1", exact: true }).element();
+
+    dragFrom(handle, [
+      [360, 400],
+      [360, 464],
+    ]);
+    await vi.waitFor(() =>
+      expect(second.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+
+    handle.dispatchEvent(gesturePointerEvent("pointermove", 360, 432));
+    await vi.waitFor(() =>
+      expect(first.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    expect(onNavigate).not.toHaveBeenCalled();
+
+    handle.dispatchEvent(gesturePointerEvent("pointerup", 360, 432));
+
+    expect(onNavigate).toHaveBeenCalledWith("section-1");
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
   });
 
@@ -345,21 +456,50 @@ describe("TableOfContents drawer", () => {
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
   });
 
-  it("leaves heading-list scrolling to the browser", async () => {
-    const screen = await render(<Fixture />);
+  it("scrubs from the heading list and suppresses the click after release", async () => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
     await openPanel(screen);
-    const link = screen.getByRole("link", { name: "Details" }).element();
-    const scroll = gestureTouchEvent("touchmove", 180, 300);
+    const navigation = screen.getByRole("navigation", { name: "Table of contents" }).element();
+    const link = screen.getByRole("link", { name: "Section 1", exact: true }).element();
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+    const second = screen.getByRole("heading", { name: "Section 2", exact: true }).element();
+    const first = screen.getByRole("heading", { name: "Section 1", exact: true }).element();
 
-    link.dispatchEvent(gestureTouchEvent("touchstart", 180, 400));
-    link.dispatchEvent(scroll);
-    link.dispatchEvent(gestureTouchEvent("touchend", 180, 300));
+    dragFrom(link, [
+      [180, 300],
+      [180, 364],
+    ]);
+    await vi.waitFor(() =>
+      expect(second.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    link.dispatchEvent(gesturePointerEvent("lostpointercapture", 180, 364));
+    navigation.dispatchEvent(gesturePointerEvent("pointermove", 180, 332));
+    await vi.waitFor(() =>
+      expect(first.getBoundingClientRect().top).toBeCloseTo(
+        scroller.getBoundingClientRect().top,
+        0,
+      ),
+    );
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(getComputedStyle(navigation).touchAction).toBe("pinch-zoom");
+    const style = getComputedStyle(navigation);
+    expect(
+      style.getPropertyValue("user-select") || style.getPropertyValue("-webkit-user-select"),
+    ).toBe("none");
 
-    expect(scroll.defaultPrevented).toBe(false);
-    expect(getComputedStyle(link).touchAction).toBe("auto");
+    navigation.dispatchEvent(gesturePointerEvent("pointerup", 180, 332));
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 });
+    link.dispatchEvent(click);
+
+    expect(click.defaultPrevented).toBe(true);
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith("section-1");
     await expect
-      .element(screen.getByRole("button", { name: "Close table of contents" }))
-      .toHaveAttribute("aria-expanded", "true");
+      .element(screen.getByRole("button", { name: "Open table of contents" }))
+      .toHaveAttribute("aria-expanded", "false");
   });
 
   it("closes on a leftward handle swipe without navigating or reopening on click", async () => {
@@ -371,6 +511,11 @@ describe("TableOfContents drawer", () => {
       .getBoundingClientRect().left;
     const handle = await openPanel(screen);
     const openLeft = handle.getBoundingClientRect().left;
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const surface = requireElement(drawer.querySelector(".table-of-contents-surface"), HTMLElement);
+    const stroke = requireElement(handle.querySelector("path"), SVGPathElement);
+    const openRight = surface.getBoundingClientRect().right;
+    const edgeInset = openRight - stroke.getBoundingClientRect().right;
 
     dragFrom(handle, [
       [360, 400],
@@ -379,6 +524,16 @@ describe("TableOfContents drawer", () => {
     await vi.waitFor(() =>
       expect(handle.getBoundingClientRect().left).toBeCloseTo(openLeft - 100, 0),
     );
+    expect(surface.getBoundingClientRect().right).toBeCloseTo(openRight - 100, 0);
+    expect(
+      surface.getBoundingClientRect().right - stroke.getBoundingClientRect().right,
+    ).toBeCloseTo(edgeInset, 0);
+    const bend = stroke.getBoundingClientRect().width;
+    expect(bend).toBeGreaterThan(0);
+
+    handle.dispatchEvent(gesturePointerEvent("pointermove", 310, 400));
+    await vi.waitFor(() => expect(stroke.getBoundingClientRect().width).toBeLessThan(bend));
+    expect(surface.getBoundingClientRect().right).toBeCloseTo(openRight - 50, 0);
 
     handle.dispatchEvent(gesturePointerEvent("pointermove", 160, 400));
     handle.dispatchEvent(gesturePointerEvent("pointerup", 160, 400));
@@ -386,6 +541,8 @@ describe("TableOfContents drawer", () => {
 
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
     await vi.waitFor(() => expect(handle.getBoundingClientRect().left).toBeCloseTo(closedLeft, 0));
+    await settle(drawer);
+    expect(stroke.getBoundingClientRect().width).toBeCloseTo(0);
     expect(onNavigate).not.toHaveBeenCalled();
   });
 
