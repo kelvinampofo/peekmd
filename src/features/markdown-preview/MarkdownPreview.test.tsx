@@ -162,7 +162,7 @@ describe("MarkdownPreview", { tags: "integration" }, () => {
 
       await selectFile(screen, markdownFile("notes.md", "# Notes"));
 
-      await expect.element(screen.getByText("Clear")).not.toBeVisible();
+      await expect.element(screen.getByText("Clear Preview")).not.toBeVisible();
       await expect.element(screen.getByText("Open File")).not.toBeVisible();
     });
   });

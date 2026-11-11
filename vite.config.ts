@@ -1,5 +1,7 @@
 /// <reference types="vitest/config" />
 
+import { availableParallelism } from "node:os";
+
 import babel from "@rolldown/plugin-babel";
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
@@ -9,6 +11,7 @@ export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
   test: {
     globals: true,
+    maxWorkers: Math.min(6, availableParallelism()),
     restoreMocks: true,
     tags: [{ name: "integration", description: "interactions between components" }],
     browser: {
