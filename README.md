@@ -1,8 +1,8 @@
 # peekmd
 
-A tiny Markdown previewer. Drop a `.md` file into the window and peekmd typesets it instantly.
+A tiny Markdown previewer. Drop in a file and start reading.
 
-The source file is read locally in your browser and is not uploaded by peekmd. Markdown can still reference remote images and links, which your browser may request when rendered.
+Files stay on your device. Remote images and links may still make network requests.
 
 ## Demo
 
@@ -13,15 +13,6 @@ https://github.com/user-attachments/assets/5a49ec15-fe8f-46f2-b85a-9b1d12d4183e
 ```sh
 npm install
 npm run dev
-```
-
-Before shipping a change:
-
-```sh
-npm run test
-npm run lint
-npm run fmt:check
-npm run build
 ```
 
 ## Credits

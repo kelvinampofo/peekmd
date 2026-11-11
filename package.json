@@ -14,6 +14,7 @@
     "lint": "oxlint",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
+    "verify": "npm run fmt:check && npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
