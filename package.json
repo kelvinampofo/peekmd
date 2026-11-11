@@ -14,6 +14,7 @@
     "lint": "oxlint",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
+    "verify": "npm run fmt:check && npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -30,13 +31,13 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/browser-playwright": "^4.1.11",
+    "@vitest/browser-playwright": "^5.1.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "oxfmt": "^0.64.0",
     "oxlint": "^1.81.0",
     "typescript": "~7.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.11",
-    "vitest-browser-react": "^2.2.0"
+    "vitest": "^5.1.0",
+    "vitest-browser-react": "^2.3.0"
   }
 }
