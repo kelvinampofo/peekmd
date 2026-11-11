@@ -1,27 +1,21 @@
 # peekmd
 
-A small Markdown previewer that runs in your browser. Drop a `.md` or `.markdown` file into the window, or choose **Open File**, to preview it.
+A tiny Markdown previewer. Drop a `.md` file into the window and peekmd typesets it instantly.
 
-peekmd reads the file locally in your browser and keeps its contents on your device. Your browser may still request remote images and links referenced in the Markdown.
+The source file is read locally in your browser and is not uploaded by peekmd. Markdown can still reference remote images and links, which your browser may request when rendered.
 
 ## Demo
 
-[Watch the demo](docs/demo.mp4) (14 seconds).
+https://github.com/user-attachments/assets/5a49ec15-fe8f-46f2-b85a-9b1d12d4183e
 
 ## Run locally
-
-Install Node.js and npm, then run these commands from the repository directory:
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open the local URL printed in the terminal.
-
-## Verify changes
-
-Run these checks before shipping a change:
+Before shipping a change:
 
 ```sh
 npm run test
@@ -32,4 +26,4 @@ npm run build
 
 ## Credits
 
-Ideas and help from Sam ([@SamFHarrison](https://github.com/SamFHarrison)).
+Ideas and help from Sam ([@SamFHarrison](https://github.com/SamFHarrison))
