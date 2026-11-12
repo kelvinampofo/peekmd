@@ -11,11 +11,14 @@ import {
 import type { Heading } from "../types/heading";
 import {
   moveGesture,
+  ownsPointer,
   releaseGesture,
   type GestureSource,
   type GestureState,
 } from "../gestures/drawer";
 import { useDismissal } from "./useDismissal";
+
+const COMPACT_LAYOUT_QUERY = "(max-width: 900px)";
 
 type DrawerState =
   | { phase: "closed" }
@@ -25,14 +28,23 @@ type DrawerState =
 
 interface DrawerOptions {
   contentRootRef: RefObject<HTMLElement | null>;
+  scrollRootRef: RefObject<HTMLElement | null>;
   currentIndex: number;
   headings: readonly Heading[];
-  onNavigate?: (id: Heading["id"]) => void;
+  onNavigate?: ((id: Heading["id"]) => void) | undefined;
 }
 
-export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }: DrawerOptions) {
+export function useDrawer({
+  contentRootRef,
+  scrollRootRef,
+  currentIndex,
+  headings,
+  onNavigate,
+}: DrawerOptions) {
   const handleRef = useRef<HTMLButtonElement>(null);
   const gestureRef = useRef<GestureState>({ phase: "idle" });
+  const suppressNextClickRef = useRef(false);
+  const scrubStartScrollTopRef = useRef(0);
 
   const [drawer, setDrawer] = useState<DrawerState>({ phase: "closed" });
 
@@ -40,15 +52,23 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
   const isDragging = drawer.phase === "opening" || drawer.phase === "closing";
   const openProgress = isDragging ? drawer.progress : isOpen ? 1 : 0;
   const scrubbedId = drawer.phase === "open" ? drawer.selectedId : undefined;
+  const hasHeadings = headings.length > 0;
+
+  const resetGesture = () => {
+    gestureRef.current = { phase: "idle" };
+    suppressNextClickRef.current = false;
+  };
 
   const close = () => {
-    gestureRef.current = { phase: "idle" };
+    resetGesture();
     setDrawer({ phase: "closed" });
   };
 
+  const open = () => setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
+
   const toggle = () => {
     if (isOpen) close();
-    else setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
+    else open();
   };
 
   const scrollToHeading = (index: number) => {
@@ -63,16 +83,22 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
     setDrawer({ phase: "open", selectedId: heading.id });
   };
 
+  const restoreReadingPosition = (originIndex: number) => {
+    scrollRootRef.current?.scrollTo({ top: scrubStartScrollTopRef.current, behavior: "instant" });
+    setDrawer({ phase: "open", selectedId: headings[originIndex]?.id });
+  };
+
   const startGesture = (event: PointerEvent<HTMLElement>, source: GestureSource) => {
     if (
       !event.isPrimary ||
       event.button !== 0 ||
-      headings.length === 0 ||
-      !window.matchMedia("(max-width: 900px)").matches
+      !hasHeadings ||
+      !window.matchMedia(COMPACT_LAYOUT_QUERY).matches
     ) {
       return;
     }
 
+    suppressNextClickRef.current = false;
     gestureRef.current = {
       phase: "pressed",
       pointerId: event.pointerId,
@@ -87,7 +113,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
   const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
     const previous = gestureRef.current;
 
-    if (!("pointerId" in previous) || previous.pointerId !== event.pointerId) return;
+    if (!ownsPointer(previous, event.pointerId)) return;
 
     const gesture = moveGesture(
       previous,
@@ -119,6 +145,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
       });
     } else if (gesture.phase === "scrubbing") {
       if (previous.phase !== "scrubbing") {
+        scrubStartScrollTopRef.current = scrollRootRef.current?.scrollTop ?? 0;
         setDrawer({ phase: "open", selectedId: headings[gesture.selectedIndex]?.id });
       }
 
@@ -126,7 +153,11 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
         gesture.hasScrubbed &&
         (previous.phase !== "scrubbing" || previous.selectedIndex !== gesture.selectedIndex)
       ) {
-        scrollToHeading(gesture.selectedIndex);
+        if (gesture.selectedIndex === gesture.originIndex) {
+          restoreReadingPosition(gesture.originIndex);
+        } else {
+          scrollToHeading(gesture.selectedIndex);
+        }
       }
     }
   };
@@ -134,7 +165,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
   const finishGesture = (event: PointerEvent<HTMLElement>, cancelled: boolean) => {
     const gesture = gestureRef.current;
 
-    if (!("pointerId" in gesture) || gesture.pointerId !== event.pointerId) return;
+    if (!ownsPointer(gesture, event.pointerId)) return;
 
     gestureRef.current = { phase: "idle" };
 
@@ -144,12 +175,16 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
 
     switch (result.action) {
       case "none":
+        if (gesture.phase === "scrubbing" && gesture.hasScrubbed) {
+          restoreReadingPosition(gesture.originIndex);
+        }
         break;
-      case "toggle":
+      case "tap":
+        // the handle cancels touchstart, so a touch tap gets no click and toggles here
         if (isHandleTouch) toggle();
         break;
       case "open":
-        setDrawer({ phase: "open", selectedId: headings[currentIndex]?.id });
+        open();
         break;
       case "close":
         close();
@@ -165,9 +200,8 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
         result satisfies never;
     }
 
-    if (cancelled || gesture.phase !== "pressed" || isHandleTouch) {
-      gestureRef.current = { phase: "released" };
-    }
+    // a drag or a touch toggle has already acted, so its trailing click must not toggle again
+    suppressNextClickRef.current = result.action !== "tap" || isHandleTouch;
 
     if (event.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
@@ -175,8 +209,8 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
   };
 
   const suppressDragClick = (event: MouseEvent<HTMLElement>) => {
-    if (event.detail !== 0 && gestureRef.current.phase === "released") {
-      gestureRef.current = { phase: "idle" };
+    if (event.detail !== 0 && suppressNextClickRef.current) {
+      resetGesture();
       event.preventDefault();
       event.stopPropagation();
       return true;
@@ -188,7 +222,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     if (suppressDragClick(event)) return;
 
-    gestureRef.current = { phase: "idle" };
+    resetGesture();
     toggle();
   };
 
@@ -199,7 +233,7 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
 
     if (!handle) return;
 
-    const media = window.matchMedia("(max-width: 900px)");
+    const media = window.matchMedia(COMPACT_LAYOUT_QUERY);
     const controller = new AbortController();
     const { signal } = controller;
 
@@ -214,9 +248,10 @@ export function useDrawer({ contentRootRef, currentIndex, headings, onNavigate }
 
     return () => {
       gestureRef.current = { phase: "idle" };
+      suppressNextClickRef.current = false;
       controller.abort();
     };
-  }, [headings]);
+  }, [hasHeadings]);
 
   useDismissal({ isOpen, handleRef, onDismiss: close });
 

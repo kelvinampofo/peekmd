@@ -1,12 +1,14 @@
+import type { Heading } from "../types/heading";
+
 export interface SectionVisibility {
-  id: string;
+  id: Heading["id"];
   beforeReadingLine: boolean;
   inViewport: boolean;
 }
 
 export interface ReadingPosition {
-  currentId: string | undefined;
-  visibleIds: readonly string[];
+  currentId: Heading["id"] | undefined;
+  visibleIds: readonly Heading["id"][];
 }
 
 export function getReadingPosition(sections: readonly SectionVisibility[]): ReadingPosition {

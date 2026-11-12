@@ -48,11 +48,21 @@ describe("TOC gestures", () => {
     expect(reversed).toMatchObject({ phase: "revealing", progress: 0 });
   });
 
-  it("closes an opening released just short of the full distance", () => {
-    const next = moveGesture(closedPress, { x: 219, y: 200 }, context);
+  it.each([
+    [159, "close"],
+    [160, "open"],
+    [219, "open"],
+  ] as const)("releases an opening drag at x = %i with %s", (x, action) => {
+    const next = moveGesture(closedPress, { x, y: 200 }, context);
 
     expect(next.phase).toBe("revealing");
-    expect(releaseGesture(next, false)).toEqual({ action: "close" });
+    expect(releaseGesture(next, false)).toEqual({ action });
+  });
+
+  it("closes a cancelled opening drag past its threshold", () => {
+    const next = moveGesture(closedPress, { x: 219, y: 200 }, context);
+
+    expect(releaseGesture(next, true)).toEqual({ action: "close" });
   });
 
   it("starts scrubbing from the current heading when opening reaches its threshold", () => {
@@ -97,6 +107,7 @@ describe("TOC gestures", () => {
     const returned = moveGesture(next, { x: 220, y: 200 }, { ...context, currentIndex: 4 });
 
     expect(returned).toMatchObject({ phase: "scrubbing", selectedIndex: 3, hasScrubbed: true });
+    expect(releaseGesture(returned, false)).toEqual({ action: "none" });
   });
 
   it("distinguishes a closing swipe from vertical scrubbing", () => {
@@ -132,12 +143,9 @@ describe("TOC gestures", () => {
     expect(releaseGesture(moved, false)).toEqual({ action: "navigate", index: 5 });
   });
 
-  it.each(["idle", "released", "rejected"] as const)(
-    "does not restart a %s session on movement",
-    (phase) => {
-      const gesture: GestureState = phase === "rejected" ? { phase, pointerId: 1 } : { phase };
+  it.each(["idle", "rejected"] as const)("does not restart a %s session on movement", (phase) => {
+    const gesture: GestureState = phase === "rejected" ? { phase, pointerId: 1 } : { phase };
 
-      expect(moveGesture(gesture, { x: 400, y: 800 }, context)).toBe(gesture);
-    },
-  );
+    expect(moveGesture(gesture, { x: 400, y: 800 }, context)).toBe(gesture);
+  });
 });

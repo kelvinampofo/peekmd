@@ -5,7 +5,7 @@ import type { Heading } from "../types/heading";
 interface HeadingNavigationOptions {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate?: (id: Heading["id"]) => void;
+  onNavigate?: ((id: Heading["id"]) => void) | undefined;
 }
 
 export function useHeadingNavigation({ isOpen, onClose, onNavigate }: HeadingNavigationOptions) {

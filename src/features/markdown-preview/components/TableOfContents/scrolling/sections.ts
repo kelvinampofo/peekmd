@@ -1,7 +1,7 @@
 import type { Heading } from "../types/heading";
 
 export interface SectionTarget {
-  id: string;
+  id: Heading["id"];
   heading: Element;
   navigationItem: Element;
 }

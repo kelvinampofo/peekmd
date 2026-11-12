@@ -12,7 +12,7 @@ interface TableOfContentsProps {
   headings: readonly Heading[];
   contentRootRef: RefObject<HTMLElement | null>;
   scrollRootRef: RefObject<HTMLElement | null>;
-  onNavigate?: (id: string) => void;
+  onNavigate?: ((id: Heading["id"]) => void) | undefined;
 }
 
 interface HeadingItemStyle extends CSSProperties {
@@ -41,15 +41,16 @@ export default function TableOfContents({
 
   const drawer = useDrawer({
     contentRootRef,
+    scrollRootRef,
     currentIndex,
     headings,
-    ...(onNavigate ? { onNavigate } : {}),
+    onNavigate,
   });
 
   const navigation = useHeadingNavigation({
     isOpen: drawer.isOpen,
     onClose: drawer.close,
-    ...(onNavigate ? { onNavigate } : {}),
+    onNavigate,
   });
 
   if (headings.length === 0) return null;

@@ -75,7 +75,7 @@ function getTransitions(element: Element) {
 
 async function settle(element: Element) {
   await new Promise(requestAnimationFrame);
-  await Promise.all(getTransitions(element).map(({ finished }) => finished));
+  await Promise.allSettled(getTransitions(element).map(({ finished }) => finished));
 }
 
 async function openPanel(screen: RenderResult) {
@@ -243,9 +243,9 @@ describe("TableOfContents drawer", () => {
 
       dragFrom(handle, [
         [12, 400],
-        [72, 400],
+        [60, 400],
       ]);
-      handle.dispatchEvent(gesturePointerEvent(eventType, 72, 400));
+      handle.dispatchEvent(gesturePointerEvent(eventType, 60, 400));
 
       await expect.element(handle).toHaveAttribute("aria-expanded", "false");
       expect(onNavigate).not.toHaveBeenCalled();
@@ -342,6 +342,48 @@ describe("TableOfContents drawer", () => {
     handle.dispatchEvent(gesturePointerEvent("lostpointercapture", 130, 452));
     handle.dispatchEvent(gesturePointerEvent("pointerup", 130, 452));
 
+    expect(onNavigate).not.toHaveBeenCalled();
+    await expect.element(handle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("opens when an opening drag is released past halfway", async () => {
+    const screen = await render(<Fixture />);
+    const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+
+    dragFrom(handle, [
+      [12, 400],
+      [80, 400],
+    ]);
+    handle.dispatchEvent(gesturePointerEvent("pointerup", 80, 400));
+
+    await expect.element(handle).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it.each([
+    ["returns to its starting heading", 400, "pointerup"],
+    ["is cancelled", 464, "pointercancel"],
+  ] as const)("restores the reading position when a scrub %s", async (_, releaseY, releaseType) => {
+    const onNavigate = vi.fn();
+    const screen = await render(<LongDocumentFixture onNavigate={onNavigate} />);
+    const scroller = screen.getByRole("region", { name: "Long document" }).element();
+    const readingPosition = 1100;
+    const handle = await openPanel(screen);
+
+    scroller.scrollTop = readingPosition;
+    await expect
+      .element(screen.getByRole("link", { name: "Section 4", exact: true }))
+      .toHaveAttribute("aria-current", "location");
+
+    dragFrom(handle, [
+      [360, 400],
+      [360, 464],
+    ]);
+    await vi.waitFor(() => expect(scroller.scrollTop).not.toBeCloseTo(readingPosition, 0));
+
+    handle.dispatchEvent(gesturePointerEvent("pointermove", 360, releaseY));
+    handle.dispatchEvent(gesturePointerEvent(releaseType, 360, releaseY));
+
+    await vi.waitFor(() => expect(scroller.scrollTop).toBeCloseTo(readingPosition, 0));
     expect(onNavigate).not.toHaveBeenCalled();
     await expect.element(handle).toHaveAttribute("aria-expanded", "true");
   });
