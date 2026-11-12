@@ -13,3 +13,4 @@ dist-ssr
 .idea
 .DS_Store
 .vercel
+.vitest/
