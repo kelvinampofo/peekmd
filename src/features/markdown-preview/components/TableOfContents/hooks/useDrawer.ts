@@ -24,7 +24,9 @@ type DrawerState =
   | { phase: "closed" }
   | { phase: "opening"; progress: number }
   | { phase: "closing"; progress: number }
-  | { phase: "open"; selectedId: Heading["id"] | undefined };
+  | { phase: "open"; selectedId: Heading["id"] | undefined }
+  // the drawer is closed and the heading is followed once its close animation ends
+  | { phase: "navigating"; targetId: Heading["id"] };
 
 interface DrawerOptions {
   contentRootRef: RefObject<HTMLElement | null>;
@@ -44,7 +46,6 @@ export function useDrawer({
   const handleRef = useRef<HTMLButtonElement>(null);
   const gestureRef = useRef<GestureState>({ phase: "idle" });
   const suppressNextClickRef = useRef(false);
-  const scrubStartScrollTopRef = useRef(0);
 
   const [drawer, setDrawer] = useState<DrawerState>({ phase: "closed" });
 
@@ -83,9 +84,36 @@ export function useDrawer({
     setDrawer({ phase: "open", selectedId: heading.id });
   };
 
-  const restoreReadingPosition = (originIndex: number) => {
-    scrollRootRef.current?.scrollTo({ top: scrubStartScrollTopRef.current, behavior: "instant" });
+  const restoreReadingPosition = (originIndex: number, originScrollTop: number) => {
+    scrollRootRef.current?.scrollTo({ top: originScrollTop, behavior: "instant" });
     setDrawer({ phase: "open", selectedId: headings[originIndex]?.id });
+  };
+
+  const handleHeadingClick = (event: MouseEvent<HTMLAnchorElement>, id: Heading["id"]) => {
+    const isModifiedClick =
+      event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const isClosing = isOpen || drawer.phase === "navigating";
+
+    if (isModifiedClick || prefersReducedMotion || !isClosing) {
+      onNavigate?.(id);
+      close();
+      return;
+    }
+
+    event.preventDefault();
+    resetGesture();
+    setDrawer({ phase: "navigating", targetId: id });
+  };
+
+  const finishNavigation = () => {
+    if (drawer.phase !== "navigating") return;
+
+    const { targetId } = drawer;
+
+    setDrawer({ phase: "closed" });
+    onNavigate?.(targetId);
+    window.location.assign(`#${targetId}`);
   };
 
   const startGesture = (event: PointerEvent<HTMLElement>, source: GestureSource) => {
@@ -122,6 +150,7 @@ export function useDrawer({
         currentIndex,
         headingCount: headings.length,
         travelDistance: Math.max(window.innerWidth, 1),
+        scrollTop: scrollRootRef.current?.scrollTop ?? 0,
       },
     );
 
@@ -145,7 +174,6 @@ export function useDrawer({
       });
     } else if (gesture.phase === "scrubbing") {
       if (previous.phase !== "scrubbing") {
-        scrubStartScrollTopRef.current = scrollRootRef.current?.scrollTop ?? 0;
         setDrawer({ phase: "open", selectedId: headings[gesture.selectedIndex]?.id });
       }
 
@@ -154,7 +182,7 @@ export function useDrawer({
         (previous.phase !== "scrubbing" || previous.selectedIndex !== gesture.selectedIndex)
       ) {
         if (gesture.selectedIndex === gesture.originIndex) {
-          restoreReadingPosition(gesture.originIndex);
+          restoreReadingPosition(gesture.originIndex, gesture.originScrollTop);
         } else {
           scrollToHeading(gesture.selectedIndex);
         }
@@ -176,7 +204,7 @@ export function useDrawer({
     switch (result.action) {
       case "none":
         if (gesture.phase === "scrubbing" && gesture.hasScrubbed) {
-          restoreReadingPosition(gesture.originIndex);
+          restoreReadingPosition(gesture.originIndex, gesture.originScrollTop);
         }
         break;
       case "tap":
@@ -226,7 +254,11 @@ export function useDrawer({
     toggle();
   };
 
-  const onViewportChange = useEffectEvent(close);
+  // a layout change can stop the close animation, so a pending heading is followed at once
+  const onViewportChange = useEffectEvent(() => {
+    if (drawer.phase === "navigating") finishNavigation();
+    else close();
+  });
 
   useEffect(() => {
     const handle = handleRef.current;
@@ -270,6 +302,8 @@ export function useDrawer({
     isDragging,
     openProgress,
     scrubbedId,
+    handleHeadingClick,
+    finishNavigation,
     navigationProps: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
         if (isOpen) startGesture(event, "list");

@@ -4,7 +4,6 @@ import Drawer from "./components/Drawer";
 import type { Heading } from "./types/heading";
 import { useDrawer } from "./hooks/useDrawer";
 import { useScrollSpy } from "./hooks/useScrollSpy";
-import { useHeadingNavigation } from "./hooks/useHeadingNavigation";
 
 import "./TableOfContents.css";
 
@@ -47,12 +46,6 @@ export default function TableOfContents({
     onNavigate,
   });
 
-  const navigation = useHeadingNavigation({
-    isOpen: drawer.isOpen,
-    onClose: drawer.close,
-    onNavigate,
-  });
-
   if (headings.length === 0) return null;
 
   return (
@@ -62,7 +55,7 @@ export default function TableOfContents({
       isDragging={drawer.isDragging}
       openProgress={drawer.openProgress}
       handleProps={drawer.handleProps}
-      onCloseComplete={navigation.finishNavigation}
+      onCloseComplete={drawer.finishNavigation}
     >
       <div className="table-of-contents__scroll-map" aria-hidden="true">
         <span className="table-of-contents__scroll-thumb" />
@@ -96,7 +89,7 @@ export default function TableOfContents({
                     visibleIds.has(heading.id) || drawer.scrubbedId === heading.id || undefined
                   }
                   draggable={drawer.isOpen ? false : undefined}
-                  onClick={(event) => navigation.handleHeadingClick(event, heading.id)}
+                  onClick={(event) => drawer.handleHeadingClick(event, heading.id)}
                 >
                   {heading.text}
                 </a>

@@ -22,6 +22,7 @@ type ScrubState = ActivePointer & {
   phase: "scrubbing";
   originY: number;
   originIndex: number;
+  originScrollTop: number;
   selectedIndex: number;
   hasScrubbed: boolean;
 };
@@ -46,19 +47,25 @@ interface GestureContext {
   currentIndex: number;
   headingCount: number;
   travelDistance: number;
+  scrollTop: number;
 }
 
 export function ownsPointer(gesture: GestureState, pointerId: number): boolean {
   return gesture.phase !== "idle" && gesture.pointerId === pointerId;
 }
 
-function beginScrub(pointerId: number, originY: number, index: number): ScrubState {
+function beginScrub(
+  pointerId: number,
+  originY: number,
+  { currentIndex, scrollTop }: GestureContext,
+): ScrubState {
   return {
     phase: "scrubbing",
     pointerId,
     originY,
-    originIndex: index,
-    selectedIndex: index,
+    originIndex: currentIndex,
+    originScrollTop: scrollTop,
+    selectedIndex: currentIndex,
     hasScrubbed: false,
   };
 }
@@ -66,7 +73,7 @@ function beginScrub(pointerId: number, originY: number, index: number): ScrubSta
 function recogniseDrag(
   gesture: GestureState,
   position: Position,
-  currentIndex: number,
+  context: GestureContext,
 ): GestureState {
   if (gesture.phase !== "pressed") return gesture;
 
@@ -82,7 +89,7 @@ function recogniseDrag(
   const isHorizontal = Math.abs(horizontalDistance) > Math.abs(verticalDistance);
 
   if (gesture.startedOpen && !isHorizontal) {
-    return beginScrub(gesture.pointerId, gesture.origin.y, currentIndex);
+    return beginScrub(gesture.pointerId, gesture.origin.y, context);
   }
 
   if (
@@ -106,8 +113,8 @@ export function moveGesture(
   position: Position,
   context: GestureContext,
 ): GestureState {
-  const { currentIndex, headingCount, travelDistance } = context;
-  const drag = recogniseDrag(gesture, position, currentIndex);
+  const { headingCount, travelDistance } = context;
+  const drag = recogniseDrag(gesture, position, context);
 
   switch (drag.phase) {
     case "idle":
@@ -118,7 +125,7 @@ export function moveGesture(
       const progress = clamp((position.x - drag.originX) / OPEN_DISTANCE, 0, 1);
 
       return progress === 1
-        ? beginScrub(drag.pointerId, position.y, currentIndex)
+        ? beginScrub(drag.pointerId, position.y, context)
         : { ...drag, progress };
     }
     case "closing":

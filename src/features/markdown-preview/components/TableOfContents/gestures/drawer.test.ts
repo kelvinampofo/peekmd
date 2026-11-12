@@ -1,6 +1,6 @@
 import { moveGesture, releaseGesture, type GestureState } from "./drawer";
 
-const context = { currentIndex: 3, headingCount: 10, travelDistance: 300 };
+const context = { currentIndex: 3, headingCount: 10, travelDistance: 300, scrollTop: 0 };
 
 const closedPress: GestureState = {
   phase: "pressed",
@@ -15,6 +15,7 @@ const scrub: GestureState = {
   pointerId: 1,
   originY: 200,
   originIndex: 3,
+  originScrollTop: 0,
   selectedIndex: 3,
   hasScrubbed: false,
 };
@@ -86,6 +87,15 @@ describe("TOC gestures", () => {
     const next = moveGesture(press, { x: 100, y: 232 }, context);
 
     expect(next).toMatchObject({ phase: "scrubbing", selectedIndex: 4 });
+  });
+
+  it("keeps the scroll position from where scrubbing began", () => {
+    const press: GestureState = { ...closedPress, startedOpen: true };
+    const started = moveGesture(press, { x: 100, y: 205 }, { ...context, scrollTop: 480 });
+    const moved = moveGesture(started, { x: 100, y: 264 }, { ...context, scrollTop: 900 });
+
+    expect(started).toMatchObject({ phase: "scrubbing", originScrollTop: 480 });
+    expect(moved).toMatchObject({ phase: "scrubbing", originScrollTop: 480 });
   });
 
   it.each([
