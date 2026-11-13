@@ -41,6 +41,9 @@
     --focus-ring: 0 0 0 2px var(--color-focus-inner-light), 0 0 0 4px var(--color-focus-outer);
     --color-selection-background: rgb(255, 249, 168);
     --color-selection-foreground: #000000;
+    --scrollbar-thumb-color: var(--color-foreground-secondary);
+    --scrollbar-track-color: color-mix(in oklab, var(--scrollbar-thumb-color) 20%, transparent);
+    --scrollbar-size: 2px;
     --font-family-sans:
       "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     --font-family-mono:
@@ -56,6 +59,7 @@
     --space-16: 16px;
     --space-24: 24px;
     --space-26: 26px;
+    --space-28: 28px;
     --space-32: 32px;
     --space-42: 42px;
     --space-48: 48px;
@@ -105,7 +109,6 @@
     touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
-    -webkit-tap-highlight-color: transparent;
     transition:
       background-color var(--duration-hover),
       border-color var(--duration-hover),
@@ -166,11 +169,26 @@
 @layer base {
   :root {
     color-scheme: light dark;
+    -webkit-tap-highlight-color: transparent;
   }
 
   * {
-    scrollbar-color: var(--color-grey-7) transparent;
+    scrollbar-color: var(--scrollbar-thumb-color) var(--scrollbar-track-color);
     scrollbar-width: thin;
+  }
+
+  *::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track-color);
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb-color);
   }
 
   body {

@@ -1,0 +1,234 @@
+@layer components {
+  .table-of-contents-drawer {
+    position: sticky;
+    top: 0;
+    height: calc(
+      100dvh - 2 * var(--workspace-padding, 0px) - env(safe-area-inset-top, 0px) -
+        env(safe-area-inset-bottom, 0px)
+    );
+    min-height: 0;
+  }
+
+  .table-of-contents-handle {
+    display: none;
+  }
+
+  .table-of-contents-surface {
+    height: 100%;
+    padding-block: var(--space-64) var(--space-42);
+  }
+
+  .table-of-contents-drawer__content {
+    height: 100%;
+    display: grid;
+    grid-template-columns: var(--scrollbar-size) minmax(0, 1fr);
+    column-gap: var(--space-12);
+    align-content: start;
+    padding-inline-end: var(--space-4);
+    overflow-y: auto;
+  }
+
+  @media (width > 900px) and (pointer: coarse) {
+    .table-of-contents-drawer__content {
+      padding-inline: var(--space-24);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .table-of-contents-drawer {
+      --table-of-contents-duration: 200ms;
+      --table-of-contents-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+      position: fixed;
+      z-index: 10;
+      inset: 0;
+      height: 100dvh;
+      pointer-events: none;
+    }
+
+    .table-of-contents-drawer[data-open] {
+      --table-of-contents-duration: 250ms;
+      --table-of-contents-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    .table-of-contents-surface {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      background: color-mix(in oklab, var(--color-background) 75%, transparent);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding-block: max(var(--space-48), env(safe-area-inset-top))
+        max(var(--space-32), env(safe-area-inset-bottom));
+      translate: calc((var(--table-of-contents-reveal) - 1) * 100%) 0;
+      transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
+    }
+
+    .table-of-contents-handle {
+      position: absolute;
+      z-index: 2;
+      inset-inline-start: 0;
+      top: 50%;
+      width: 44px;
+      height: 64px;
+      display: grid;
+      place-items: center start;
+      cursor: ew-resize;
+      pointer-events: auto;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      translate: clamp(
+          env(safe-area-inset-left),
+          calc(var(--table-of-contents-reveal) * 100vw - 44px - env(safe-area-inset-right)),
+          calc(100vw - 44px - env(safe-area-inset-right))
+        )
+        -50%;
+      transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
+    }
+
+    .table-of-contents-gesture-hint {
+      position: absolute;
+      inset-inline-start: calc(var(--table-of-contents-handle-offset) + 6px);
+      top: 50%;
+      width: 32px;
+      height: 32px;
+      translate: 0 -50%;
+      pointer-events: none;
+      visibility: hidden;
+      animation: table-of-contents-show-hint 0s linear 5s forwards;
+      transition:
+        opacity 180ms var(--ease-out),
+        filter 180ms var(--ease-out);
+
+      @media (prefers-reduced-motion: reduce) {
+        transition: none;
+      }
+    }
+
+    .table-of-contents-gesture-hint__dot {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: var(--color-foreground);
+      opacity: 0.16;
+
+      @media (prefers-reduced-motion: no-preference) {
+        animation: table-of-contents-drag-hint 2.6s ease-in-out 5s infinite;
+      }
+    }
+
+    .table-of-contents-gesture-hint[data-dismissed] {
+      opacity: 0;
+      filter: blur(4px);
+      animation-play-state: paused;
+
+      @media (prefers-reduced-motion: reduce) {
+        filter: none;
+      }
+    }
+
+    .table-of-contents-gesture-hint[data-dismissed] .table-of-contents-gesture-hint__dot {
+      animation-play-state: paused;
+    }
+
+    @keyframes table-of-contents-show-hint {
+      to {
+        visibility: visible;
+      }
+    }
+
+    @keyframes table-of-contents-drag-hint {
+      0%,
+      46%,
+      100% {
+        transform: translateX(0) scale(1);
+        opacity: 0.16;
+      }
+
+      15% {
+        transform: translateX(0) scale(0.9);
+        opacity: 0.3;
+      }
+
+      31% {
+        transform: translateX(24px) scale(1);
+        opacity: 0.16;
+      }
+    }
+
+    .table-of-contents-handle::before {
+      content: "";
+      position: absolute;
+      inset-block: calc(-1 * var(--space-32));
+      inset-inline: calc(-1 * var(--space-32));
+    }
+
+    .table-of-contents-handle svg {
+      width: 28px;
+      height: 44px;
+      overflow: visible;
+      translate: var(--table-of-contents-handle-offset) 0;
+      transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
+    }
+
+    .table-of-contents-handle__stroke {
+      fill: none;
+      stroke-width: 4;
+      stroke: var(--scrollbar-thumb-color);
+      transition: transform var(--table-of-contents-duration) var(--table-of-contents-easing);
+    }
+
+    .table-of-contents-handle__stroke--upper {
+      transform-origin: 4px 4px;
+      transform: matrix(1, 0, var(--table-of-contents-chevron-bend), 1, 0, 0);
+    }
+
+    .table-of-contents-handle__stroke--lower {
+      transform-origin: 4px 40px;
+      transform: matrix(1, 0, calc(-1 * var(--table-of-contents-chevron-bend)), 1, 0, 0);
+    }
+
+    .table-of-contents-drawer[data-dragging] .table-of-contents-surface,
+    .table-of-contents-drawer[data-dragging] .table-of-contents-handle,
+    .table-of-contents-drawer[data-dragging] .table-of-contents-handle svg,
+    .table-of-contents-drawer[data-dragging] .table-of-contents-handle__stroke {
+      transition: none;
+    }
+
+    .table-of-contents-drawer__content {
+      padding-inline: max(var(--space-42), calc(env(safe-area-inset-left) + var(--space-42)))
+        max(var(--space-24), calc(env(safe-area-inset-right) + var(--space-24)));
+      visibility: hidden;
+      transition: visibility 0s linear var(--table-of-contents-duration);
+    }
+
+    .table-of-contents-drawer:is([data-open], [data-dragging]) .table-of-contents-drawer__content {
+      visibility: visible;
+      transition-delay: 0s;
+    }
+
+    .table-of-contents-drawer[data-open] .table-of-contents-surface {
+      pointer-events: auto;
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .table-of-contents-surface {
+        background: var(--color-background);
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .table-of-contents-drawer__content,
+      .table-of-contents-surface,
+      .table-of-contents-handle,
+      .table-of-contents-handle svg,
+      .table-of-contents-handle__stroke {
+        transition: none;
+      }
+    }
+  }
+}

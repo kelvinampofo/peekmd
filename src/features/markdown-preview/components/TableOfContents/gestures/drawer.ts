@@ -1,0 +1,172 @@
+import { clamp } from "../../../../../utils/math";
+
+const OPEN_DISTANCE = 120;
+const OPEN_THRESHOLD = 0.5;
+const CLOSE_THRESHOLD = 0.8;
+const DRAG_HYSTERESIS_DISTANCE = 4;
+const SCRUB_HYSTERESIS_DISTANCE = 16;
+const SCRUB_STEP = 32;
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+interface ActivePointer {
+  pointerId: number;
+}
+
+export type GestureSource = "handle" | "list";
+
+type ScrubState = ActivePointer & {
+  phase: "scrubbing";
+  originY: number;
+  originIndex: number;
+  originScrollTop: number;
+  selectedIndex: number;
+  hasScrubbed: boolean;
+};
+
+export type GestureState =
+  | { phase: "idle" }
+  | (ActivePointer & {
+      phase: "pressed";
+      origin: Position;
+      startedOpen: boolean;
+      source: GestureSource;
+    })
+  | (ActivePointer & { phase: "rejected" })
+  | (ActivePointer & { phase: "revealing" | "closing"; originX: number; progress: number })
+  | ScrubState;
+
+export type ReleaseAction =
+  | { action: "none" | "tap" | "open" | "close" }
+  | { action: "navigate"; index: number };
+
+interface GestureContext {
+  currentIndex: number;
+  headingCount: number;
+  travelDistance: number;
+  scrollTop: number;
+}
+
+export function ownsPointer(gesture: GestureState, pointerId: number): boolean {
+  return gesture.phase !== "idle" && gesture.pointerId === pointerId;
+}
+
+function beginScrub(
+  pointerId: number,
+  originY: number,
+  { currentIndex, scrollTop }: GestureContext,
+): ScrubState {
+  return {
+    phase: "scrubbing",
+    pointerId,
+    originY,
+    originIndex: currentIndex,
+    originScrollTop: scrollTop,
+    selectedIndex: currentIndex,
+    hasScrubbed: false,
+  };
+}
+
+function recogniseDrag(
+  gesture: GestureState,
+  position: Position,
+  context: GestureContext,
+): GestureState {
+  if (gesture.phase !== "pressed") return gesture;
+
+  const horizontalDistance = position.x - gesture.origin.x;
+  const verticalDistance = position.y - gesture.origin.y;
+
+  if (
+    Math.max(Math.abs(horizontalDistance), Math.abs(verticalDistance)) <= DRAG_HYSTERESIS_DISTANCE
+  ) {
+    return gesture;
+  }
+
+  const isHorizontal = Math.abs(horizontalDistance) > Math.abs(verticalDistance);
+
+  if (gesture.startedOpen && !isHorizontal) {
+    return beginScrub(gesture.pointerId, gesture.origin.y, context);
+  }
+
+  if (
+    gesture.source === "list" ||
+    !isHorizontal ||
+    (gesture.startedOpen ? horizontalDistance > 0 : horizontalDistance < 0)
+  ) {
+    return { phase: "rejected", pointerId: gesture.pointerId };
+  }
+
+  return {
+    phase: gesture.startedOpen ? "closing" : "revealing",
+    pointerId: gesture.pointerId,
+    originX: gesture.origin.x,
+    progress: gesture.startedOpen ? 1 : 0,
+  };
+}
+
+export function moveGesture(
+  gesture: GestureState,
+  position: Position,
+  context: GestureContext,
+): GestureState {
+  const { headingCount, travelDistance } = context;
+  const drag = recogniseDrag(gesture, position, context);
+
+  switch (drag.phase) {
+    case "idle":
+    case "pressed":
+    case "rejected":
+      return drag;
+    case "revealing": {
+      const progress = clamp((position.x - drag.originX) / OPEN_DISTANCE, 0, 1);
+
+      return progress === 1
+        ? beginScrub(drag.pointerId, position.y, context)
+        : { ...drag, progress };
+    }
+    case "closing":
+      return {
+        ...drag,
+        progress: clamp(1 + (position.x - drag.originX) / travelDistance, 0, 1),
+      };
+    case "scrubbing": {
+      const verticalDistance = position.y - drag.originY;
+
+      if (Math.abs(verticalDistance) <= SCRUB_HYSTERESIS_DISTANCE && !drag.hasScrubbed) {
+        return drag;
+      }
+
+      const indexDelta = Math.trunc(verticalDistance / SCRUB_STEP);
+      const selectedIndex = clamp(drag.originIndex + indexDelta, 0, headingCount - 1);
+
+      return { ...drag, selectedIndex, hasScrubbed: true };
+    }
+    default:
+      return drag satisfies never;
+  }
+}
+
+export function releaseGesture(gesture: GestureState, cancelled: boolean): ReleaseAction {
+  switch (gesture.phase) {
+    case "idle":
+    case "rejected":
+      return { action: "none" };
+    case "pressed":
+      return { action: cancelled ? "none" : "tap" };
+    case "revealing":
+      return { action: !cancelled && gesture.progress >= OPEN_THRESHOLD ? "open" : "close" };
+    case "closing":
+      return { action: !cancelled && gesture.progress <= CLOSE_THRESHOLD ? "close" : "open" };
+    case "scrubbing":
+      // returning to the starting heading abandons the scrub
+      return !cancelled && gesture.selectedIndex !== gesture.originIndex
+        ? { action: "navigate", index: gesture.selectedIndex }
+        : { action: "none" };
+    default:
+      return gesture satisfies never;
+  }
+}

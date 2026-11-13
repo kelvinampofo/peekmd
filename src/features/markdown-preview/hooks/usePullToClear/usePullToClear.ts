@@ -1,5 +1,7 @@
 import { useEffect, useEffectEvent, useRef } from "react";
 
+import { clamp } from "../../../../utils/math";
+
 const CLEAR_THRESHOLD = 160;
 
 interface UsePullToClearOptions {
@@ -7,8 +9,13 @@ interface UsePullToClearOptions {
   onClear: () => void;
 }
 
+function isPullToClearExcluded(target: EventTarget | null) {
+  return target instanceof Element && target.closest("[data-gesture-control]") !== null;
+}
+
 export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
   const scrollRef = useRef<HTMLElement>(null);
+
   const clear = useEffectEvent(onClear);
 
   useEffect(() => {
@@ -28,7 +35,7 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
     };
 
     const updateProgress = (distance: number) => {
-      const progress = Math.min(Math.max(distance / CLEAR_THRESHOLD, 0), 1);
+      const progress = clamp(distance / CLEAR_THRESHOLD, 0, 1);
 
       scroller.style.setProperty("--clear-progress", progress.toString());
       scroller.toggleAttribute("data-clear-ready", progress === 1);
@@ -76,8 +83,16 @@ export function usePullToClear({ enabled, onClear }: UsePullToClearOptions) {
       reset();
 
       const touch = event.touches[0];
+      const target = event.target;
 
-      if (event.touches.length !== 1 || !touch || !isScrolledToEnd()) return;
+      if (
+        event.touches.length !== 1 ||
+        !touch ||
+        !isScrolledToEnd() ||
+        isPullToClearExcluded(target)
+      ) {
+        return;
+      }
 
       const gesture = new AbortController();
       const startY = touch.clientY;
