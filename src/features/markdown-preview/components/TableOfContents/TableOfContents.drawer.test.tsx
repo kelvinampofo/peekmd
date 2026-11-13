@@ -100,7 +100,7 @@ describe("TableOfContents drawer", () => {
       .element(screen.getByRole("navigation", { name: "Table of contents", includeHidden: true }))
       .not.toBeVisible();
 
-    await screen.getByRole("button", { name: "Open table of contents" }).click();
+    await openPanel(screen);
 
     await expect
       .element(screen.getByRole("navigation", { name: "Table of contents" }))
