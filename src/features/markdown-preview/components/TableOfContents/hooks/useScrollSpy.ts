@@ -38,7 +38,7 @@ export function useScrollSpy({
     const navigationScroller = drawer.querySelector(".table-of-contents-drawer__content");
     const scrollTrack = drawer.querySelector(".table-of-contents__scroll-map");
 
-    const itemFor = (id: string | undefined) =>
+    const itemFor = (id: Heading["id"] | undefined) =>
       id === undefined ? undefined : navigationItems.get(id);
 
     const syncNavigation = (next: ReadingPosition) => {

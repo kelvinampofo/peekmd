@@ -1,6 +1,7 @@
 import { clamp } from "../../../../../utils/math";
 
 const OPEN_DISTANCE = 120;
+const OPEN_THRESHOLD = 0.5;
 const CLOSE_THRESHOLD = 0.8;
 const DRAG_HYSTERESIS_DISTANCE = 4;
 const SCRUB_HYSTERESIS_DISTANCE = 16;
@@ -17,9 +18,17 @@ interface ActivePointer {
 
 export type GestureSource = "handle" | "list";
 
+type ScrubState = ActivePointer & {
+  phase: "scrubbing";
+  originY: number;
+  originIndex: number;
+  originScrollTop: number;
+  selectedIndex: number;
+  hasScrubbed: boolean;
+};
+
 export type GestureState =
   | { phase: "idle" }
-  | { phase: "released" }
   | (ActivePointer & {
       phase: "pressed";
       origin: Position;
@@ -28,28 +37,43 @@ export type GestureState =
     })
   | (ActivePointer & { phase: "rejected" })
   | (ActivePointer & { phase: "revealing" | "closing"; originX: number; progress: number })
-  | (ActivePointer & {
-      phase: "scrubbing";
-      originY: number;
-      originIndex: number;
-      selectedIndex: number;
-      hasScrubbed: boolean;
-    });
+  | ScrubState;
 
 export type ReleaseAction =
-  | { action: "none" | "toggle" | "open" | "close" }
+  | { action: "none" | "tap" | "open" | "close" }
   | { action: "navigate"; index: number };
 
 interface GestureContext {
   currentIndex: number;
   headingCount: number;
   travelDistance: number;
+  scrollTop: number;
+}
+
+export function ownsPointer(gesture: GestureState, pointerId: number): boolean {
+  return gesture.phase !== "idle" && gesture.pointerId === pointerId;
+}
+
+function beginScrub(
+  pointerId: number,
+  originY: number,
+  { currentIndex, scrollTop }: GestureContext,
+): ScrubState {
+  return {
+    phase: "scrubbing",
+    pointerId,
+    originY,
+    originIndex: currentIndex,
+    originScrollTop: scrollTop,
+    selectedIndex: currentIndex,
+    hasScrubbed: false,
+  };
 }
 
 function recogniseDrag(
   gesture: GestureState,
   position: Position,
-  currentIndex: number,
+  context: GestureContext,
 ): GestureState {
   if (gesture.phase !== "pressed") return gesture;
 
@@ -65,14 +89,7 @@ function recogniseDrag(
   const isHorizontal = Math.abs(horizontalDistance) > Math.abs(verticalDistance);
 
   if (gesture.startedOpen && !isHorizontal) {
-    return {
-      phase: "scrubbing",
-      pointerId: gesture.pointerId,
-      originY: gesture.origin.y,
-      originIndex: currentIndex,
-      selectedIndex: currentIndex,
-      hasScrubbed: false,
-    };
+    return beginScrub(gesture.pointerId, gesture.origin.y, context);
   }
 
   if (
@@ -96,12 +113,11 @@ export function moveGesture(
   position: Position,
   context: GestureContext,
 ): GestureState {
-  const { currentIndex, headingCount, travelDistance } = context;
-  const drag = recogniseDrag(gesture, position, currentIndex);
+  const { headingCount, travelDistance } = context;
+  const drag = recogniseDrag(gesture, position, context);
 
   switch (drag.phase) {
     case "idle":
-    case "released":
     case "pressed":
     case "rejected":
       return drag;
@@ -109,14 +125,7 @@ export function moveGesture(
       const progress = clamp((position.x - drag.originX) / OPEN_DISTANCE, 0, 1);
 
       return progress === 1
-        ? {
-            phase: "scrubbing",
-            pointerId: drag.pointerId,
-            originY: position.y,
-            originIndex: currentIndex,
-            selectedIndex: currentIndex,
-            hasScrubbed: false,
-          }
+        ? beginScrub(drag.pointerId, position.y, context)
         : { ...drag, progress };
     }
     case "closing":
@@ -131,7 +140,7 @@ export function moveGesture(
         return drag;
       }
 
-      const indexDelta = Math.trunc((position.y - drag.originY) / SCRUB_STEP);
+      const indexDelta = Math.trunc(verticalDistance / SCRUB_STEP);
       const selectedIndex = clamp(drag.originIndex + indexDelta, 0, headingCount - 1);
 
       return { ...drag, selectedIndex, hasScrubbed: true };
@@ -144,17 +153,17 @@ export function moveGesture(
 export function releaseGesture(gesture: GestureState, cancelled: boolean): ReleaseAction {
   switch (gesture.phase) {
     case "idle":
-    case "released":
     case "rejected":
       return { action: "none" };
     case "pressed":
-      return { action: cancelled ? "none" : "toggle" };
+      return { action: cancelled ? "none" : "tap" };
     case "revealing":
-      return { action: "close" };
+      return { action: !cancelled && gesture.progress >= OPEN_THRESHOLD ? "open" : "close" };
     case "closing":
       return { action: !cancelled && gesture.progress <= CLOSE_THRESHOLD ? "close" : "open" };
     case "scrubbing":
-      return !cancelled && gesture.hasScrubbed
+      // returning to the starting heading abandons the scrub
+      return !cancelled && gesture.selectedIndex !== gesture.originIndex
         ? { action: "navigate", index: gesture.selectedIndex }
         : { action: "none" };
     default:

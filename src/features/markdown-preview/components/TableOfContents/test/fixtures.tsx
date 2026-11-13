@@ -10,7 +10,7 @@ const headings: readonly Heading[] = [
 
 interface FixtureProps {
   headings?: readonly Heading[];
-  onNavigate?: (id: string) => void;
+  onNavigate?: ((id: Heading["id"]) => void) | undefined;
 }
 
 export function Fixture({ headings: fixtureHeadings = headings, onNavigate }: FixtureProps) {
@@ -23,7 +23,7 @@ export function Fixture({ headings: fixtureHeadings = headings, onNavigate }: Fi
         headings={fixtureHeadings}
         contentRootRef={contentRootRef}
         scrollRootRef={scrollRootRef}
-        {...(onNavigate ? { onNavigate } : {})}
+        onNavigate={onNavigate}
       />
       <article ref={contentRootRef}>
         <h1 id="introduction">Introduction</h1>
@@ -42,7 +42,7 @@ const longDocumentHeadings: readonly Heading[] = Array.from({ length: 40 }, (_, 
 
 interface LongDocumentFixtureProps {
   sectionHeight?: number;
-  onNavigate?: (id: string) => void;
+  onNavigate?: ((id: Heading["id"]) => void) | undefined;
 }
 
 export function LongDocumentFixture({ sectionHeight = 250, onNavigate }: LongDocumentFixtureProps) {
@@ -65,7 +65,7 @@ export function LongDocumentFixture({ sectionHeight = 250, onNavigate }: LongDoc
         headings={longDocumentHeadings}
         contentRootRef={contentRootRef}
         scrollRootRef={scrollRootRef}
-        {...(onNavigate ? { onNavigate } : {})}
+        onNavigate={onNavigate}
       />
       <article ref={contentRootRef}>
         {longDocumentHeadings.map((item) => (
