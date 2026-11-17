@@ -82,18 +82,12 @@ export default function Drawer({
         aria-label={isOpen ? "Close table of contents" : "Open table of contents"}
         className="table-of-contents-handle"
         data-gesture-control=""
+        data-hint-dismissed={hasInteracted || isOpen || isDragging || undefined}
         {...handleProps}
         onPointerDownCapture={dismissHint}
         onClickCapture={dismissHint}
         type="button"
       >
-        <span
-          className="table-of-contents-gesture-hint"
-          data-dismissed={hasInteracted || isOpen || isDragging || undefined}
-          aria-hidden="true"
-        >
-          <span className="table-of-contents-gesture-hint__dot" />
-        </span>
         <svg aria-hidden="true" viewBox="0 0 28 44">
           <path
             className="table-of-contents-handle__stroke table-of-contents-handle__stroke--upper"

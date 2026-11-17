@@ -101,74 +101,30 @@
       transition: translate var(--table-of-contents-duration) var(--table-of-contents-easing);
     }
 
-    .table-of-contents-gesture-hint {
-      position: absolute;
-      inset-inline-start: calc(var(--table-of-contents-handle-offset) + 6px);
-      top: 50%;
-      width: 32px;
-      height: 32px;
-      translate: 0 -50%;
-      pointer-events: none;
-      visibility: hidden;
-      animation: table-of-contents-show-hint 0s linear 5s forwards;
-      transition:
-        opacity 180ms var(--ease-out),
-        filter 180ms var(--ease-out);
-
-      @media (prefers-reduced-motion: reduce) {
-        transition: none;
-      }
-    }
-
-    .table-of-contents-gesture-hint__dot {
-      display: block;
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      background: var(--color-foreground);
-      opacity: 0.16;
-
+    .table-of-contents-handle:not([data-hint-dismissed]) .table-of-contents-handle__stroke {
       @media (prefers-reduced-motion: no-preference) {
-        animation: table-of-contents-drag-hint 2.6s ease-in-out 5s infinite;
+        animation: table-of-contents-pull-hint 2.4s ease-in-out 3.5s 2;
       }
     }
 
-    .table-of-contents-gesture-hint[data-dismissed] {
-      opacity: 0;
-      filter: blur(4px);
-      animation-play-state: paused;
-
-      @media (prefers-reduced-motion: reduce) {
-        filter: none;
-      }
+    .table-of-contents-handle__stroke--upper {
+      --table-of-contents-hint-bend: 0.22;
     }
 
-    .table-of-contents-gesture-hint[data-dismissed] .table-of-contents-gesture-hint__dot {
-      animation-play-state: paused;
+    .table-of-contents-handle__stroke--lower {
+      --table-of-contents-hint-bend: -0.22;
     }
 
-    @keyframes table-of-contents-show-hint {
-      to {
-        visibility: visible;
-      }
-    }
-
-    @keyframes table-of-contents-drag-hint {
+    @keyframes table-of-contents-pull-hint {
       0%,
-      46%,
+      45%,
       100% {
-        transform: translateX(0) scale(1);
-        opacity: 0.16;
+        transform: matrix(1, 0, 0, 1, 0, 0);
       }
 
-      15% {
-        transform: translateX(0) scale(0.9);
-        opacity: 0.3;
-      }
-
-      31% {
-        transform: translateX(24px) scale(1);
-        opacity: 0.16;
+      20%,
+      30% {
+        transform: matrix(1, 0, var(--table-of-contents-hint-bend), 1, 0, 0);
       }
     }
 

@@ -97,121 +97,96 @@ describe("Drawer", () => {
     expect(handleRef.current).toBe(originalHandle);
   });
 
-  it("shows the gesture hint after five seconds", async () => {
-    const frameRef = createRef<HTMLDivElement>();
-    await render(
-      <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+  it("gives the handle two small chevron tugs after 3.5 seconds", async () => {
+    const screen = await render(
+      <Drawer {...closedState} ref={null} handleProps={{}}>
         <Navigation />
       </Drawer>,
     );
-    const frame = requireElement(frameRef.current, HTMLDivElement);
-    const hint = requireElement(
-      frame.querySelector(".table-of-contents-gesture-hint"),
-      HTMLElement,
-    );
+    const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+    const stroke = requireElement(handle.querySelector("path"), SVGPathElement);
+    const start = handle.getBoundingClientRect().left;
+    const straight = getComputedStyle(stroke).transform;
+    const animations = handle.getAnimations({ subtree: true });
 
-    expect(getComputedStyle(hint).visibility).toBe("hidden");
-    const animations = hint.getAnimations();
-
+    expect(animations).toHaveLength(2);
     for (const animation of animations) {
       animation.pause();
-      animation.currentTime = 4999;
+      animation.currentTime = 3499;
+    }
+    expect(getComputedStyle(stroke).transform).toBe(straight);
+
+    for (const animation of animations) {
+      animation.currentTime = 4100;
     }
 
-    expect(getComputedStyle(hint).visibility).toBe("hidden");
+    expect(getComputedStyle(stroke).transform).not.toBe(straight);
+    expect(handle.getBoundingClientRect().left).toBe(start);
 
-    for (const animation of animations) animation.currentTime = 5000;
+    for (const animation of animations) {
+      animation.currentTime = 5000;
+    }
 
-    expect(getComputedStyle(hint).visibility).toBe("visible");
+    expect(getComputedStyle(stroke).transform).toBe(straight);
+
+    for (const animation of animations) {
+      animation.currentTime = 6500;
+    }
+
+    expect(getComputedStyle(stroke).transform).not.toBe(straight);
+
+    for (const animation of animations) {
+      animation.finish();
+      expect(animation.effect?.getTiming().iterations).toBe(2);
+    }
+
+    expect(getComputedStyle(stroke).transform).toBe(straight);
   });
 
   it.each(["pointerdown", "click"])(
-    "dismisses the hint on %s and keeps it dismissed after closing",
+    "stops the handle hint on %s and keeps it dismissed after closing",
     async (type) => {
-      const frameRef = createRef<HTMLDivElement>();
       const screen = await render(
-        <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+        <Drawer {...closedState} ref={null} handleProps={{}}>
           <Navigation />
         </Drawer>,
       );
-      const frame = requireElement(frameRef.current, HTMLDivElement);
       const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+      const stroke = requireElement(handle.querySelector("path"), SVGPathElement);
+      const straight = getComputedStyle(stroke).transform;
+      const animations = handle.getAnimations({ subtree: true });
 
-      expect(frame.querySelector(".table-of-contents-gesture-hint")).not.toBeNull();
+      expect(animations).toHaveLength(2);
+
+      for (const animation of animations) {
+        animation.pause();
+        animation.currentTime = 4100;
+      }
+
+      expect(getComputedStyle(stroke).transform).not.toBe(straight);
       handle.dispatchEvent(
         type === "pointerdown"
           ? new PointerEvent(type, { bubbles: true })
           : new MouseEvent(type, { bubbles: true }),
       );
-      const hint = requireElement(
-        frame.querySelector(".table-of-contents-gesture-hint"),
-        HTMLElement,
-      );
-      await vi.waitFor(() => expect(getComputedStyle(hint).opacity).toBe("0"));
+
+      await vi.waitFor(() => expect(handle.getAnimations({ subtree: true })).toHaveLength(0));
+      expect(getComputedStyle(stroke).transform).toBe(straight);
 
       await screen.rerender(
-        <Drawer {...closedState} ref={frameRef} isOpen openProgress={1} handleProps={{}}>
+        <Drawer {...closedState} ref={null} isOpen openProgress={1} handleProps={{}}>
           <Navigation />
         </Drawer>,
       );
       await screen.rerender(
-        <Drawer {...closedState} ref={frameRef} handleProps={{}}>
+        <Drawer {...closedState} ref={null} handleProps={{}}>
           <Navigation />
         </Drawer>,
       );
 
-      expect(getComputedStyle(hint).opacity).toBe("0");
+      await vi.waitFor(() => expect(handle.getAnimations({ subtree: true })).toHaveLength(0));
     },
   );
-
-  it("fades and blurs a visible hint when the handle is pressed", async () => {
-    const frameRef = createRef<HTMLDivElement>();
-    const screen = await render(
-      <Drawer {...closedState} ref={frameRef} handleProps={{}}>
-        <Navigation />
-      </Drawer>,
-    );
-    const frame = requireElement(frameRef.current, HTMLDivElement);
-    const hint = requireElement(
-      frame.querySelector(".table-of-contents-gesture-hint"),
-      HTMLElement,
-    );
-
-    for (const animation of hint.getAnimations({ subtree: true })) {
-      animation.pause();
-      animation.currentTime = 5000;
-    }
-
-    expect(getComputedStyle(hint).visibility).toBe("visible");
-    expect(getComputedStyle(hint).opacity).toBe("1");
-    screen
-      .getByRole("button", { name: "Open table of contents" })
-      .element()
-      .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-
-    await vi.waitFor(() =>
-      expect(hint.getAnimations().some((animation) => animation instanceof CSSTransition)).toBe(
-        true,
-      ),
-    );
-    const transitions = hint
-      .getAnimations()
-      .filter((animation) => animation instanceof CSSTransition);
-
-    for (const transition of transitions) {
-      transition.pause();
-      transition.currentTime = 90;
-    }
-
-    const opacity = Number(getComputedStyle(hint).opacity);
-    expect(opacity).toBeGreaterThan(0);
-    expect(opacity).toBeLessThan(1);
-    expect(getComputedStyle(hint).filter).toContain("blur");
-
-    for (const transition of transitions) transition.finish();
-
-    await vi.waitFor(() => expect(getComputedStyle(hint).opacity).toBe("0"));
-  });
 
   it("keeps the list off-screen while the handle is dragged", async () => {
     const frameRef = createRef<HTMLDivElement>();
