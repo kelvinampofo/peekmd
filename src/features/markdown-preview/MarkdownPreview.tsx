@@ -42,7 +42,7 @@ export default function MarkdownPreview() {
 
   function clearPreview() {
     fileReadVersion.current += 1;
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    scrollRef.current?.scrollTo({ top: 0, behavior: "instant" });
     setFileReadState({ status: "idle" });
   }
 
@@ -97,7 +97,7 @@ export default function MarkdownPreview() {
       >
         {fileReadState.status === "loaded" ? (
           <>
-            <Article document={fileReadState.document} />
+            <Article document={fileReadState.document} scrollContainerRef={scrollRef} />
             <DocumentActions
               ref={fileInputRef}
               onClear={clearPreview}
