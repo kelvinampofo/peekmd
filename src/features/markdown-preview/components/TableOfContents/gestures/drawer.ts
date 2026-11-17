@@ -1,7 +1,7 @@
 import { clamp } from "../../../../../utils/math";
 
 const OPEN_DISTANCE = 120;
-const OPEN_THRESHOLD = 0.5;
+const OPEN_THRESHOLD = 0.65;
 const CLOSE_THRESHOLD = 0.8;
 const DRAG_HYSTERESIS_DISTANCE = 4;
 const SCRUB_HYSTERESIS_DISTANCE = 16;

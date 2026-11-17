@@ -475,15 +475,15 @@ describe("TableOfContents drawer", () => {
     await expect.element(handle).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("opens when an opening drag is released past halfway", async () => {
+  it("opens when an opening drag is released past its threshold", async () => {
     const screen = await render(<Fixture />);
     const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
 
     dragFrom(handle, [
       [12, 400],
-      [80, 400],
+      [112, 400],
     ]);
-    handle.dispatchEvent(gesturePointerEvent("pointerup", 80, 400));
+    handle.dispatchEvent(gesturePointerEvent("pointerup", 112, 400));
 
     await expect.element(handle).toHaveAttribute("aria-expanded", "true");
   });
