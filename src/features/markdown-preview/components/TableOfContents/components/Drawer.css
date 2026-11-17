@@ -42,13 +42,27 @@
       position: fixed;
       z-index: 10;
       inset: 0;
+      width: auto;
       height: 100dvh;
+      max-width: none;
+      max-height: none;
+      margin: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      overflow: visible;
       pointer-events: none;
     }
 
     .table-of-contents-drawer[data-open] {
       --table-of-contents-duration: 250ms;
       --table-of-contents-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    .table-of-contents-drawer[data-pointer-focus] :focus {
+      outline: none;
+      box-shadow: none;
     }
 
     .table-of-contents-surface {

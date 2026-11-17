@@ -16,6 +16,7 @@ import {
   type GestureSource,
   type GestureState,
 } from "../gestures/drawer";
+import { useDrawerModality } from "./useDrawerModality";
 import { useDismissal } from "./useDismissal";
 
 const COMPACT_LAYOUT_QUERY = "(max-width: 900px)";
@@ -29,6 +30,7 @@ type DrawerState =
   | { phase: "navigating"; targetId: Heading["id"] };
 
 interface DrawerOptions {
+  drawerRef: RefObject<HTMLDivElement | null>;
   contentRootRef: RefObject<HTMLElement | null>;
   scrollRootRef: RefObject<HTMLElement | null>;
   currentIndex: number;
@@ -37,6 +39,7 @@ interface DrawerOptions {
 }
 
 export function useDrawer({
+  drawerRef,
   contentRootRef,
   scrollRootRef,
   currentIndex,
@@ -54,6 +57,12 @@ export function useDrawer({
   const openProgress = isDragging ? drawer.progress : isOpen ? 1 : 0;
   const scrubbedId = drawer.phase === "open" ? drawer.selectedId : undefined;
   const hasHeadings = headings.length > 0;
+  const modality = useDrawerModality({
+    drawerRef,
+    handleRef,
+    isActive: isOpen || isDragging,
+    hasHeadings,
+  });
 
   const resetGesture = () => {
     gestureRef.current = { phase: "idle" };
@@ -256,6 +265,7 @@ export function useDrawer({
 
   // a layout change can stop the close animation, so a pending heading is followed at once
   const onViewportChange = useEffectEvent(() => {
+    modality.release();
     if (drawer.phase === "navigating") finishNavigation();
     else close();
   });
@@ -285,7 +295,14 @@ export function useDrawer({
     };
   }, [hasHeadings]);
 
-  useDismissal({ isOpen, handleRef, onDismiss: close });
+  useDismissal({ isOpen, drawerRef, handleRef, onDismiss: close });
+
+  const finishClose = () => {
+    if (isOpen || isDragging) return;
+
+    modality.release();
+    finishNavigation();
+  };
 
   const pointerProps = {
     onPointerMove: handlePointerMove,
@@ -297,13 +314,14 @@ export function useDrawer({
   };
 
   return {
+    attachDrawer: modality.attachDrawer,
     close,
     isOpen,
     isDragging,
     openProgress,
     scrubbedId,
     handleHeadingClick,
-    finishNavigation,
+    finishClose,
     navigationProps: {
       onPointerDown: (event: PointerEvent<HTMLElement>) => {
         if (isOpen) startGesture(event, "list");

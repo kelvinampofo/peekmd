@@ -2,11 +2,12 @@ import { useEffect, useEffectEvent, type RefObject } from "react";
 
 interface DismissalOptions {
   isOpen: boolean;
+  drawerRef: RefObject<HTMLDivElement | null>;
   handleRef: RefObject<HTMLButtonElement | null>;
   onDismiss: () => void;
 }
 
-export function useDismissal({ isOpen, handleRef, onDismiss }: DismissalOptions): void {
+export function useDismissal({ isOpen, drawerRef, handleRef, onDismiss }: DismissalOptions): void {
   const dismiss = useEffectEvent(onDismiss);
 
   useEffect(() => {
@@ -14,7 +15,12 @@ export function useDismissal({ isOpen, handleRef, onDismiss }: DismissalOptions)
 
     const handleOutsideClick = (event: MouseEvent) => {
       if (event.defaultPrevented) return;
-      if (event.target instanceof Node && handleRef.current?.contains(event.target)) return;
+      if (
+        event.target instanceof Node &&
+        (drawerRef.current?.querySelector(".table-of-contents-surface")?.contains(event.target) ||
+          handleRef.current?.contains(event.target))
+      )
+        return;
 
       dismiss();
     };
@@ -30,5 +36,5 @@ export function useDismissal({ isOpen, handleRef, onDismiss }: DismissalOptions)
     window.addEventListener("keydown", handleKeyDown, { signal });
 
     return () => controller.abort();
-  }, [handleRef, isOpen]);
+  }, [drawerRef, handleRef, isOpen]);
 }

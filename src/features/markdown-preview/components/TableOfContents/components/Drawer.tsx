@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useState,
   type ComponentPropsWithRef,
   type CSSProperties,
@@ -37,6 +38,13 @@ export default function Drawer({
   children,
 }: DrawerProps) {
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [isPointerFocus, setIsPointerFocus] = useState(false);
+
+  useEffect(() => {
+    const showKeyboardFocus = () => setIsPointerFocus(false);
+    document.addEventListener("keydown", showKeyboardFocus, true);
+    return () => document.removeEventListener("keydown", showKeyboardFocus, true);
+  }, []);
 
   const dismissHint = () => setHasInteracted(true);
 
@@ -64,6 +72,8 @@ export default function Drawer({
       className="table-of-contents-drawer"
       data-dragging={isDragging || undefined}
       data-open={isOpen || undefined}
+      data-pointer-focus={isPointerFocus || undefined}
+      onPointerDownCapture={() => setIsPointerFocus(true)}
       ref={ref}
       style={style}
     >

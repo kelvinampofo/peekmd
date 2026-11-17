@@ -39,7 +39,8 @@ export default function TableOfContents({
     0,
   );
 
-  const drawer = useDrawer({
+  const { attachDrawer, ...drawer } = useDrawer({
+    drawerRef,
     contentRootRef,
     scrollRootRef,
     currentIndex,
@@ -51,12 +52,12 @@ export default function TableOfContents({
 
   return (
     <Drawer
-      ref={drawerRef}
+      ref={attachDrawer}
       isOpen={drawer.isOpen}
       isDragging={drawer.isDragging}
       openProgress={drawer.openProgress}
       handleProps={{ ...drawer.handleProps, "aria-controls": navigationId }}
-      onCloseComplete={drawer.finishNavigation}
+      onCloseComplete={drawer.finishClose}
     >
       <div className="table-of-contents__scroll-map" aria-hidden="true">
         <span className="table-of-contents__scroll-thumb" />

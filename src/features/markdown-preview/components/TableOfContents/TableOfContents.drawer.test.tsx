@@ -1,4 +1,4 @@
-import { page, userEvent } from "vitest/browser";
+import { page, server, userEvent } from "vitest/browser";
 import { render, type RenderResult } from "vitest-browser-react";
 
 import "../../../../styles/system.css";
@@ -93,6 +93,130 @@ describe("TableOfContents drawer", () => {
     vi.spyOn(Element.prototype, "hasPointerCapture").mockReturnValue(false);
   });
 
+  it("focuses the compact drawer and restores the page after Escape", async () => {
+    const screen = await render(
+      <>
+        <Fixture />
+        <button type="button">Outside drawer</button>
+        <div inert data-existing-inert="" />
+      </>,
+    );
+    const article = requireElement(screen.getByRole("article").element(), HTMLElement);
+    const outsideButton = requireElement(
+      screen.getByRole("button", { name: "Outside drawer" }).element(),
+      HTMLButtonElement,
+    );
+    const previouslyInert = requireElement(
+      screen.container.querySelector("[data-existing-inert]"),
+      HTMLElement,
+    );
+    const handle = await openPanel(screen);
+    const dialog = requireElement(
+      screen.getByRole("dialog", { name: "Table of contents" }).element(),
+      HTMLElement,
+    );
+
+    expect(dialog.matches(":popover-open")).toBe(true);
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(article.inert).toBe(true);
+    expect(outsideButton.inert).toBe(true);
+    await expect.element(handle).toHaveFocus();
+
+    outsideButton.focus();
+    await expect.element(handle).toHaveFocus();
+    screen.getByRole("link", { name: "Details" }).element().focus();
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(dialog.hasAttribute("aria-modal")).toBe(false));
+    expect(dialog.matches(":popover-open")).toBe(false);
+    expect(dialog.hasAttribute("popover")).toBe(false);
+    expect(article.inert).toBe(false);
+    expect(outsideButton.inert).toBe(false);
+    expect(previouslyInert.inert).toBe(true);
+    await expect.element(handle).toHaveFocus();
+  });
+
+  it("keeps article links out of keyboard navigation while the compact drawer is open", async () => {
+    const screen = await render(<Fixture />);
+    const article = screen.getByRole("article").element();
+    const articleLink = document.createElement("a");
+    articleLink.href = "#details";
+    articleLink.textContent = "Article details";
+    article.append(articleLink);
+    const handle = await openPanel(screen);
+    const introduction = screen.getByRole("link", { name: "Introduction" });
+    const details = screen.getByRole("link", { name: "Details", exact: true });
+    const tab = async () => {
+      if (server.browser === "webkit" && server.platform === "darwin") {
+        await userEvent.keyboard("{Alt>}{Tab}{/Alt}");
+      } else {
+        await userEvent.tab();
+      }
+    };
+
+    await tab();
+    await expect.element(introduction).toHaveFocus();
+    await tab();
+    await expect.element(details).toHaveFocus();
+    await tab();
+    await expect.element(articleLink).not.toHaveFocus();
+    expect(articleLink.closest("[inert]")).not.toBeNull();
+
+    details.element().focus();
+    await userEvent.keyboard("{Escape}");
+
+    await expect.element(handle).toHaveFocus();
+    articleLink.focus();
+    await expect.element(articleLink).toHaveFocus();
+  });
+
+  it("releases the page when the compact drawer is removed", async () => {
+    const screen = await render(<Fixture />);
+    const article = requireElement(screen.getByRole("article").element(), HTMLElement);
+    await openPanel(screen);
+    expect(article.inert).toBe(true);
+
+    await screen.rerender(<Fixture headings={[]} />);
+
+    expect(article.inert).toBe(false);
+    await expect.element(screen.getByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hides the focus ring after touch and shows it for keyboard use", async () => {
+    const screen = await render(<Fixture />);
+    const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
+
+    dragFrom(handle, [[16, 400]]);
+    handle.dispatchEvent(gesturePointerEvent("pointerup", 16, 400));
+
+    await expect.element(handle).toHaveAttribute("aria-expanded", "true");
+    await expect.element(handle).toHaveFocus();
+    expect(getComputedStyle(handle).boxShadow).toBe("none");
+    expect(getComputedStyle(handle).outlineStyle).toBe("none");
+
+    await userEvent.keyboard("{Escape}");
+
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    await vi.waitFor(() => expect(drawer.hasAttribute("aria-modal")).toBe(false));
+    await expect.element(handle).toHaveFocus();
+    expect(getComputedStyle(handle).boxShadow).not.toBe("none");
+  });
+
+  it("releases the page when closing has no transition", async () => {
+    const screen = await render(<Fixture />);
+    const article = requireElement(screen.getByRole("article").element(), HTMLElement);
+    const handle = await openPanel(screen);
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const surface = requireElement(drawer.querySelector(".table-of-contents-surface"), HTMLElement);
+    surface.style.transition = "none";
+
+    await userEvent.keyboard("{Escape}");
+
+    await vi.waitFor(() => expect(drawer.hasAttribute("aria-modal")).toBe(false));
+    expect(article.inert).toBe(false);
+    await expect.element(handle).toHaveFocus();
+  });
+
   it("opens with an accessible handle and closes after a regular navigation", async () => {
     const onNavigate = vi.fn();
     const screen = await render(<Fixture onNavigate={onNavigate} />);
@@ -125,6 +249,7 @@ describe("TableOfContents drawer", () => {
 
   it("keeps the glass and text appearance steady while the drawer returns off-screen", async () => {
     const screen = await render(<Fixture />);
+    const article = requireElement(screen.getByRole("article").element(), HTMLElement);
     const handle = screen.getByRole("button", { name: "Open table of contents" }).element();
     const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
     const surface = requireElement(drawer.querySelector(".table-of-contents-surface"), HTMLElement);
@@ -150,6 +275,7 @@ describe("TableOfContents drawer", () => {
     }
 
     expect(getComputedStyle(content).visibility).toBe("visible");
+    expect(article.inert).toBe(true);
     expect(surface.getBoundingClientRect().left).toBeGreaterThan(-390);
     expect(surface.getBoundingClientRect().left).toBeLessThan(0);
     expect(getComputedStyle(surface).opacity).toBe("1");
@@ -159,6 +285,7 @@ describe("TableOfContents drawer", () => {
     for (const animation of animations) animation.finish();
 
     await vi.waitFor(() => expect(getComputedStyle(content).visibility).toBe("hidden"));
+    await vi.waitFor(() => expect(article.inert).toBe(false));
     expect(backgroundAlpha(surface)).toBe(openAlpha);
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
   });
@@ -232,6 +359,8 @@ describe("TableOfContents drawer", () => {
 
     expect(onNavigate).not.toHaveBeenCalled();
     await expect.element(handle).toHaveAttribute("aria-expanded", "true");
+    expect(drawer.matches(":popover-open")).toBe(true);
+    expect(drawer.getAttribute("aria-modal")).toBe("true");
   });
 
   it.each(["pointerup", "pointercancel"] as const)(
@@ -412,14 +541,25 @@ describe("TableOfContents drawer", () => {
 
   it("closes when the viewport widens to the desktop layout", async () => {
     const screen = await render(<Fixture />);
+    const article = requireElement(screen.getByRole("article").element(), HTMLElement);
     const handle = await openPanel(screen);
+    const drawer = requireElement(handle.closest(".table-of-contents-drawer"), HTMLElement);
+    const details = screen.getByRole("link", { name: "Details" });
+    details.element().focus();
 
     await page.viewport(1280, 800);
 
     await expect.element(handle).toHaveAttribute("aria-expanded", "false");
+    expect(article.inert).toBe(false);
+    expect(drawer.hasAttribute("role")).toBe(false);
+    expect(drawer.hasAttribute("popover")).toBe(false);
+    await expect
+      .element(screen.getByRole("navigation", { name: "Table of contents" }))
+      .toBeVisible();
+    await expect.element(details).toHaveFocus();
   });
 
-  it("closes when tapping anywhere other than a heading link", async () => {
+  it("keeps the drawer open when tapping blank space inside the panel", async () => {
     const screen = await render(<Fixture />);
 
     await screen.getByRole("button", { name: "Open table of contents" }).click();
@@ -431,8 +571,8 @@ describe("TableOfContents drawer", () => {
     list.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     await expect
-      .element(screen.getByRole("button", { name: "Open table of contents" }))
-      .toHaveAttribute("aria-expanded", "false");
+      .element(screen.getByRole("button", { name: "Close table of contents" }))
+      .toHaveAttribute("aria-expanded", "true");
   });
 
   it("keeps the table of contents open if the platform cancels after the threshold", async () => {
