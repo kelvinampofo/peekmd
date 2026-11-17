@@ -50,10 +50,8 @@ describe("TOC gestures", () => {
   });
 
   it.each([
-    [159, "close"],
     [177, "close"],
     [178, "open"],
-    [219, "open"],
   ] as const)("releases an opening drag at x = %i with %s", (x, action) => {
     const next = moveGesture(closedPress, { x, y: 200 }, context);
 

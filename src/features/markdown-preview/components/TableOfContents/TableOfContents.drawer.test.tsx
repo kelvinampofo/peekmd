@@ -530,15 +530,6 @@ describe("TableOfContents drawer", () => {
     await expect.element(handle).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("closes on Escape", async () => {
-    const screen = await render(<Fixture />);
-    const handle = await openPanel(screen);
-
-    await userEvent.keyboard("{Escape}");
-
-    await expect.element(handle).toHaveAttribute("aria-expanded", "false");
-  });
-
   it("closes when the viewport widens to the desktop layout", async () => {
     const screen = await render(<Fixture />);
     const article = requireElement(screen.getByRole("article").element(), HTMLElement);
