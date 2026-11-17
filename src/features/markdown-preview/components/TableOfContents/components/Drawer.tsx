@@ -68,7 +68,6 @@ export default function Drawer({
       style={style}
     >
       <button
-        aria-controls="table-of-contents-navigation"
         aria-expanded={isOpen}
         aria-label={isOpen ? "Close table of contents" : "Open table of contents"}
         className="table-of-contents-handle"

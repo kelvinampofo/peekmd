@@ -1,4 +1,4 @@
-import { useRef, type CSSProperties, type RefObject } from "react";
+import { useId, useRef, type CSSProperties, type RefObject } from "react";
 
 import Drawer from "./components/Drawer";
 import type { Heading } from "./types/heading";
@@ -25,6 +25,7 @@ export default function TableOfContents({
   onNavigate,
 }: TableOfContentsProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+  const navigationId = useId();
 
   const { visibleIds, currentId } = useScrollSpy({
     contentRootRef,
@@ -54,7 +55,7 @@ export default function TableOfContents({
       isOpen={drawer.isOpen}
       isDragging={drawer.isDragging}
       openProgress={drawer.openProgress}
-      handleProps={drawer.handleProps}
+      handleProps={{ ...drawer.handleProps, "aria-controls": navigationId }}
       onCloseComplete={drawer.finishNavigation}
     >
       <div className="table-of-contents__scroll-map" aria-hidden="true">
@@ -62,7 +63,7 @@ export default function TableOfContents({
       </div>
       <nav
         className="table-of-contents"
-        id="table-of-contents-navigation"
+        id={navigationId}
         aria-label="Table of contents"
         data-gesture-control={drawer.isOpen ? "" : undefined}
         {...drawer.navigationProps}

@@ -115,4 +115,22 @@ describe("Article", () => {
     expect(getComputedStyle(codeBlock).overflowX).toBe("hidden");
     expect(codeBlock.scrollWidth).toBeLessThanOrEqual(codeBlock.clientWidth);
   });
+  it("keeps the navigation control distinct from a matching Markdown heading", async () => {
+    const screen = await render(<Preview source={"# Start\n\n## Table of contents navigation"} />);
+    const heading = screen.getByRole("heading", { name: "Table of contents navigation" }).element();
+    const navigation = screen.getByRole("navigation", { name: "Table of contents" }).element();
+    const handle = screen.getByRole("button", {
+      name: "Open table of contents",
+      includeHidden: true,
+    });
+
+    expect(document.querySelectorAll('[id="table-of-contents-navigation"]')).toHaveLength(1);
+    expect(document.getElementById("table-of-contents-navigation")).toBe(heading);
+    expect(navigation.id).not.toBe(heading.id);
+    await expect.element(handle).toHaveAttribute("aria-controls", navigation.id);
+
+    await screen.getByRole("link", { name: "Table of contents navigation" }).click();
+
+    expect(document.querySelector(":target")).toBe(heading);
+  });
 });

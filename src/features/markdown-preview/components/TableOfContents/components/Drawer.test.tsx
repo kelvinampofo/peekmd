@@ -37,7 +37,7 @@ describe("Drawer", () => {
         isOpen
         isDragging={false}
         openProgress={1}
-        handleProps={{ ref: handleRef }}
+        handleProps={{ ref: handleRef, "aria-controls": "table-of-contents-navigation" }}
         onCloseComplete={() => {}}
       >
         <Navigation />
